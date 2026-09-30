@@ -1,0 +1,11 @@
+# Projet Xcode généré par XcodeGen (cd ios && xcodegen generate)
+ios/Envol.xcodeproj/
+ios/Envol/Info.plist
+ios/build/
+ios/build.log
+*.xcuserstate
+DerivedData/
+
+node_modules/
+.DS_Store
+Thumbs.db

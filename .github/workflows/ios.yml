@@ -1,0 +1,84 @@
+# Compile l'app iOS sur un Mac de GitHub, la lance dans un simulateur iPhone
+# et enregistre une capture de chaque écran (onglet « Actions » → dernière exécution → « Artifacts »).
+name: App iOS — compilation et captures
+
+on:
+  push:
+    paths: ['ios/**', 'data/**', '.github/workflows/ios.yml']
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Choisir Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Générer le projet Xcode
+        run: |
+          brew install xcodegen
+          cd ios && xcodegen generate
+
+      - name: Trouver un simulateur iPhone
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          phones = [d for runtime, lst in devices.items() if 'iOS' in runtime for d in lst if d['name'].startswith('iPhone')]
+          pick = next((d for d in phones if d['name'] == 'iPhone 16 Pro'), None) or next((d for d in phones if 'Pro' in d['name']), phones[0])
+          print(pick['udid'])")
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl list devices | grep "$UDID"
+
+      - name: Compiler
+        run: |
+          cd ios
+          set -o pipefail
+          xcodebuild -project Envol.xcodeproj -scheme Envol -configuration Debug \
+            -sdk iphonesimulator -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)" || true
+          test -d build/Build/Products/Debug-iphonesimulator/Envol.app
+
+      - name: Erreurs de compilation (si échec)
+        if: failure()
+        run: grep -E "error:" ios/build.log | sort -u | head -80 || true
+
+      - name: Lancer l'app et capturer les écrans
+        run: |
+          UDID=${{ steps.sim.outputs.udid }}
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+          xcrun simctl install "$UDID" ios/build/Build/Products/Debug-iphonesimulator/Envol.app
+          mkdir -p captures
+          i=1
+          for screen in onboarding0 onboarding2 onboarding3 onboarding4 onboarding5 onboarding7 home results detail explore favoris alertes profile; do
+            xcrun simctl terminate "$UDID" fr.envol.app 2>/dev/null || true
+            xcrun simctl launch "$UDID" fr.envol.app -demoScreen "$screen"
+            sleep 9   # chargement de la base, des photos et fin des animations
+            xcrun simctl io "$UDID" screenshot "captures/$(printf '%02d' $i)-$screen.png"
+            i=$((i+1))
+          done
+          ls -la captures
+
+      - name: Enregistrer les captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: captures-iphone
+          path: captures/
+          if-no-files-found: ignore
+
+      - name: Enregistrer le journal de compilation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journal-compilation
+          path: ios/build.log
+          if-no-files-found: ignore
