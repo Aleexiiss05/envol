@@ -35,10 +35,11 @@ struct ExploreView: View {
                     }
                     ForEach(visible) { d in
                         if let a = store.airportByCode[d.airport] {
+                            let labelled = labelledCodes.contains(d.code) || selected?.code == d.code
                             MapPolyline(coordinates: [o.coordinate, a.coordinate], contourStyle: .geodesic)
                                 .stroke(Color.accentColor.opacity(selected?.code == d.code ? 0.9 : 0.18), lineWidth: selected?.code == d.code ? 2 : 1)
-                            Annotation(store.city(d.code), coordinate: a.coordinate, anchor: .bottom) {
-                                pricePin(d)
+                            Annotation(store.city(d.code), coordinate: a.coordinate, anchor: labelled ? .bottom : .center) {
+                                if labelled { pricePin(d) } else { priceDot(d) }
                             }
                             .tag(d.code)
                             .annotationTitles(.hidden)
@@ -61,6 +62,18 @@ struct ExploreView: View {
             .task(id: "\(origin)-\(month)-\(directOnly)") { await load() }
             .sensoryFeedback(.selection, trigger: selected?.code)
         }
+    }
+
+    /// Seules les destinations les moins chères portent une étiquette ; les autres sont des points (touchez pour voir le prix)
+    private var labelledCodes: Set<String> { Set(visible.sorted { $0.price < $1.price }.prefix(14).map { $0.code }) }
+    private func priceDot(_ d: FlightStore.Destination) -> some View {
+        Circle().fill(d.price <= cheapThreshold ? Color.green : Color.secondary)
+            .frame(width: 10, height: 10)
+            .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+            .shadow(color: .black.opacity(0.2), radius: 1.5, y: 1)
+            .padding(8)
+            .contentShape(Circle())
+            .accessibilityLabel("\(store.city(d.code)), dès \(euros(d.price))")
     }
 
     private func pricePin(_ d: FlightStore.Destination) -> some View {

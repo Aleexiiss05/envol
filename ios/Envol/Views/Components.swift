@@ -42,10 +42,15 @@ struct PlacePhoto: View {
     let code: String
     var width = 800
     var body: some View {
-        AsyncImage(url: FlightStore.shared.photoURL(code, width: width), transaction: .init(animation: .easeOut(duration: 0.3))) { phase in
-            if let img = phase.image { img.resizable().scaledToFill() } else { Rectangle().fill(.quaternary) }
-        }
-        .accessibilityHidden(true)
+        // Color.clear prend exactement la taille proposée : la photo remplit son cadre sans jamais le déborder
+        Color.clear
+            .overlay {
+                AsyncImage(url: FlightStore.shared.photoURL(code, width: width), transaction: .init(animation: .easeOut(duration: 0.3))) { phase in
+                    if let img = phase.image { img.resizable().scaledToFill() } else { Rectangle().fill(.quaternary) }
+                }
+            }
+            .clipped()
+            .accessibilityHidden(true)
     }
 }
 

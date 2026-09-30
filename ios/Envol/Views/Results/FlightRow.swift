@@ -17,7 +17,7 @@ struct FlightRow: View {
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(result.carriers.compactMap { store.airlines[$0]?.name }.joined(separator: " + ")).font(.subheadline.weight(.medium)).lineLimit(1)
-                    Text(result.flightNumbers.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(result.flightNumbers.map(Fmt.flight).joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 4)
                 if isFavorite { Image(systemName: "heart.fill").foregroundStyle(.pink).font(.caption) }

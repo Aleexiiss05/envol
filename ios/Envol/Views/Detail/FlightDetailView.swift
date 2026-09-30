@@ -151,7 +151,7 @@ struct FlightDetailView: View {
                 Rectangle().fill(.quaternary).frame(width: 2).padding(.leading, 4)
                 AirlineLogo(code: leg.airline, size: 26)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("\(store.airlines[leg.airline]?.name ?? leg.airline) · \(leg.flightNumber)").font(.subheadline.weight(.medium))
+                    Text("\(store.airlines[leg.airline]?.name ?? leg.airline) · \(Fmt.flight(leg.flightNumber))").font(.subheadline.weight(.medium))
                     Text("\(leg.aircraft) · \(Fmt.duration(leg.minutes)) · \(Int(leg.km).formatted()) km").font(.caption).foregroundStyle(.secondary)
                 }
             }

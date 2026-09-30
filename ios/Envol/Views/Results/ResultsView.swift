@@ -223,7 +223,8 @@ struct ResultsView: View {
                 }
             }
             FlightPathProgress(steps: steps, current: current, details: details)
-                .frame(height: 92)
+                .frame(height: 84)
+                .padding(.bottom, 30)
                 .padding(.horizontal, 6)
             if step == 2, let o = outbound {
                 HStack(spacing: 10) {

@@ -63,6 +63,8 @@ enum Fmt {
     }
     static func duration(_ m: Int) -> String { "\(m / 60) h \(String(format: "%02d", m % 60))" }
     static func plural(_ n: Int, _ word: String) -> String { "\(n) \(word)\(n > 1 ? "s" : "")" }
+    /// « U25032 » → « U2 5032 »
+    static func flight(_ fn: String) -> String { fn.count > 2 ? "\(fn.prefix(2)) \(fn.dropFirst(2))" : fn }
 }
 
 /// Même hachage que le site (FNV-1a sur les unités UTF-16) : les prix sont identiques sur les deux supports.
