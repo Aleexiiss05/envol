@@ -43,11 +43,21 @@ jobs:
           xcodebuild -project Envol.xcodeproj -scheme Envol -configuration Debug \
             -sdk iphonesimulator -destination "id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath build CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)" || true
-          test -d build/Build/Products/Debug-iphonesimulator/Envol.app
+          # échec réel si la compilation a échoué (le dossier .app peut exister sans exécutable)
+          ! grep -q "BUILD FAILED" build.log
+          test -f build/Build/Products/Debug-iphonesimulator/Envol.app/Envol
 
       - name: Erreurs de compilation (si échec)
         if: failure()
-        run: grep -E "error:" ios/build.log | sort -u | head -80 || true
+        run: |
+          # Chaque erreur Swift devient une annotation visible sur la page de l'exécution
+          grep -E "^/.*\.swift:[0-9]+:[0-9]+: error:" ios/build.log | sort -u | head -50 | while IFS= read -r line; do
+            file=$(echo "$line" | sed -E 's#^.*/(ios/Envol/[^:]+):([0-9]+):([0-9]+): error: (.*)$#\1#')
+            ln=$(echo "$line" | sed -E 's#^.*\.swift:([0-9]+):([0-9]+): error: .*$#\1#')
+            msg=$(echo "$line" | sed -E 's#^.*: error: (.*)$#\1#')
+            echo "::error file=$file,line=$ln::$msg"
+          done
+          grep -E "error:" ios/build.log | sort -u | head -80 || true
 
       - name: Lancer l'app et capturer les écrans
         run: |

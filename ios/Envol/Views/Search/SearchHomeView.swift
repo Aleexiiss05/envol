@@ -104,7 +104,8 @@ struct SearchHomeView: View {
     private var forYouSubtitle: String {
         let vibes = user.profile.vibes.map(\.label).sorted().joined(separator: ", ").lowercased()
         let budget = user.profile.budget >= 1500 ? "" : " · moins de \(euros(user.profile.budget))"
-        return (vibes.isEmpty ? "Selon vos habitudes" : vibes.prefix(1).uppercased() + vibes.dropFirst()) + budget
+        let head: String = vibes.isEmpty ? "Selon vos habitudes" : vibes.prefix(1).uppercased() + String(vibes.dropFirst())
+        return head + budget
     }
     private func loadForYou() {
         let p = user.profile

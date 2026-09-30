@@ -223,8 +223,10 @@ final class FlightStore {
         }
         let firstStart = segs.first?.startUTC ?? 0, lastEnd = segs.last?.endUTC ?? 0
         let from = legs.first?.from ?? flights[0].from, to = legs.last?.to ?? flights[0].to
-        let key = flights.map { String($0.id) }.joined(separator: "+") + "@" + date
-            + (offsets.contains { $0 != 0 } ? "~" + offsets.map(String.init).joined() : "") + ":" + cabin.rawValue
+        let ids: String = flights.map { String($0.id) }.joined(separator: "+")
+        let hasOffset: Bool = offsets.contains { $0 != 0 }
+        let offsetPart: String = hasOffset ? "~" + offsets.map { String($0) }.joined() : ""
+        let key: String = "\(ids)@\(date)\(offsetPart):\(cabin.rawValue)"
         let total = prices.reduce(0, +)
         var carriers: [String] = []
         for l in legs where !carriers.contains(l.airline) { carriers.append(l.airline) }
