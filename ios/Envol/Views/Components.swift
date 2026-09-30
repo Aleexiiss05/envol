@@ -23,7 +23,7 @@ struct AirlineLogo: View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.25, style: .continuous)
                 .fill(Color(hex: airline?.color ?? "#1D1D1F"))
-            Text(code).font(.system(size: size * 0.32, weight: .semibold)).foregroundStyle(.white)
+            Text(code).font(.inter(size * 0.32, .semibold)).foregroundStyle(.white)
             AsyncImage(url: FlightStore.shared.logoURL(code)) { phase in
                 if let img = phase.image {
                     img.resizable().scaledToFit().padding(size * 0.08).background(.white)
@@ -102,7 +102,7 @@ struct Pill: View {
     let text: String
     var color: Color = .accentColor
     var body: some View {
-        Text(text).font(.caption.weight(.semibold)).foregroundStyle(color)
+        Text(text).font(.inter(.caption, .semibold)).foregroundStyle(color)
     }
 }
 

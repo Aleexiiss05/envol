@@ -88,94 +88,75 @@ struct ResultsView: View {
     }
 
     var body: some View {
-        List {
-            Section { journey.listRowInsets(EdgeInsets()).listRowBackground(Color.clear) }
-            Section {
-                dateStrip.listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0)).listRowBackground(Color.clear)
-                Picker("Tri", selection: $sort) {
-                    ForEach([SortOrder.best, .cheap, .fast]) { s in Text(s.label).tag(s) }
-                }
-                .pickerStyle(.segmented)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                .sensoryFeedback(.selection, trigger: sort)
-                if let insight {
-                    Label {
-                        Text(insight.text).font(.subheadline)
-                    } icon: {
-                        Image(systemName: insight.level < 0 ? "arrow.down.circle.fill" : insight.level > 0 ? "exclamationmark.circle.fill" : "equal.circle.fill")
-                            .foregroundStyle(insight.level < 0 ? .green : insight.level > 0 ? .orange : .secondary)
-                    }
-                }
-            }
-            if loading {
-                // Squelettes de chargement : la mise en page ne saute pas quand les vols arrivent
-                Section {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12, pinnedViews: []) {
+                journey
+                    .padding(.horizontal, 16)
+                dateStrip
+                sortTiles
+                    .padding(.horizontal, 16)
+                toolbar
+                    .padding(.horizontal, 16)
+                if let insight, !loading { insightCard(insight).padding(.horizontal, 16) }
+                if loading {
+                    // Squelettes de chargement : la mise en page ne saute pas quand les vols arrivent
                     ForEach(0..<4, id: \.self) { _ in
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack { RoundedRectangle(cornerRadius: 8).frame(width: 30, height: 30); Text("Compagnie aérienne"); Spacer(); Text("Recommandé") }
-                            HStack { Text("00:00").font(.title2); Spacer(); Text("0 h 00"); Spacer(); Text("00:00").font(.title2) }
-                            HStack { Text("Bagages"); Spacer(); Text("000 €").font(.title3) }
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack { RoundedRectangle(cornerRadius: 8).frame(width: 28, height: 28); Text("Compagnie aérienne"); Spacer(); Circle().frame(width: 34, height: 34) }
+                            HStack { Text("00:00").font(.inter(24)); Spacer(); Text("0 h 00"); Spacer(); Text("00:00").font(.inter(24)) }
+                            HStack { Text("Bagages"); Spacer(); Text("000 €").font(.inter(21)) }
                         }
-                        .padding(.vertical, 6)
+                        .foregroundStyle(Theme.gray2)
                         .redacted(reason: .placeholder)
+                        .padding(16)
+                        .background(.white, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
                         .shimmering()
+                        .padding(.horizontal, 16)
                     }
-                }
-            } else if filtered.isEmpty {
-                Section {
+                } else if filtered.isEmpty {
                     ContentUnavailableView {
-                        Label(results.isEmpty ? "Aucun vol ce jour-là" : "Aucun vol avec ces filtres", systemImage: "airplane.circle")
+                        Label(results.isEmpty ? "Aucun vol ce jour-là" : "Aucun vol avec ces filtres", systemImage: "airplane")
                     } description: {
                         Text(results.isEmpty ? "Essayez une date voisine dans la barre ci-dessus." : "\(Fmt.plural(results.count, "vol")) existent mais ne correspondent pas à vos critères.")
                     } actions: {
-                        if !results.isEmpty { Button("Réinitialiser les filtres") { filters = Filters() } }
+                        if !results.isEmpty { Button("Réinitialiser les filtres") { filters = Filters() }.buttonStyle(PillButtonStyle(prominent: false)) }
                     }
-                }
-            } else {
-                Section {
+                    .padding(.vertical, 24)
+                    .background(.white, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                    .padding(.horizontal, 16)
+                } else {
                     ForEach(filtered) { r in
                         FlightRow(result: r, badge: badge(r), perAdultLabel: priceLabel, showBag: user.bagIncluded, bag: store.bagCost(r),
-                                  isFavorite: user.isFavorite(r.key))
-                            .contentShape(Rectangle())
+                                  isFavorite: user.isFavorite(r.key),
+                                  onFavorite: { user.toggleFavorite(r); favTrigger.toggle() },
+                                  onChoose: { detail = r })
                             .onTapGesture { detail = r }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button { user.toggleFavorite(r); favTrigger.toggle() } label: {
-                                    Label(user.isFavorite(r.key) ? "Retirer" : "Favori", systemImage: user.isFavorite(r.key) ? "heart.slash" : "heart")
-                                }
-                                .tint(.pink)
-                            }
                             .contextMenu {
                                 Button { user.toggleFavorite(r) } label: { Label(user.isFavorite(r.key) ? "Retirer des favoris" : "Ajouter aux favoris", systemImage: "heart") }
                                 ShareLink(item: shareText(r)) { Label("Partager ce vol", systemImage: "square.and.arrow.up") }
                             }
-                            .accessibilityAction(named: "Ajouter aux favoris") { user.toggleFavorite(r) }
+                            .padding(.horizontal, 16)
+                            .transition(.opacity)
                     }
-                } header: {
-                    Text("\(Fmt.plural(filtered.count, "vol"))\(filtered.count != results.count ? " sur \(results.count)" : "") · \(user.bagIncluded ? "bagage en soute compris" : "taxes incluses")")
-                        .textCase(nil)
                 }
             }
+            .padding(.top, 4)
+            .padding(.bottom, 24)
         }
-        .listStyle(.insetGrouped)
+        .background(Theme.gray)
         .navigationTitle(step == 2 ? "Vol retour" : query.roundTrip ? "Vol aller" : "Votre vol")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button { user.toggleAlert(query) } label: {
                     Image(systemName: user.hasAlert(query) ? "bell.fill" : "bell")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(user.hasAlert(query) ? Theme.accent : Theme.ink)
+                        .frame(width: 34, height: 34)
+                        .background(user.hasAlert(query) ? Theme.accentBg : Theme.gray, in: Circle())
+                        .symbolEffect(.bounce, value: user.hasAlert(query))
                 }
                 .accessibilityLabel(user.hasAlert(query) ? "Ne plus surveiller le prix" : "Surveiller le prix")
-                Button { showFilters = true } label: {
-                    Image(systemName: filters.activeCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                        .overlay(alignment: .topTrailing) {
-                            if filters.activeCount > 0 {
-                                Text("\(filters.activeCount)").font(.caption2.bold()).foregroundStyle(.white)
-                                    .padding(4).background(.tint, in: Circle()).offset(x: 8, y: -8)
-                            }
-                        }
-                }
-                .accessibilityLabel("Filtres, \(filters.activeCount) actif\(filters.activeCount > 1 ? "s" : "")")
             }
         }
         .sheet(isPresented: $showFilters) {
@@ -188,13 +169,16 @@ struct ResultsView: View {
             }
         }
         .sensoryFeedback(.success, trigger: favTrigger)
+        .sensoryFeedback(.selection, trigger: sort)
         .task { if user.bagIncluded != query.bagIncluded && query.bagIncluded { user.bagIncluded = true }; await load() }
         .onChange(of: user.bagIncluded) { _, _ in Task { await load() } }
         .animation(.default, value: step)
+        .animation(.smooth(duration: 0.3), value: sort)
+        .animation(.smooth(duration: 0.3), value: filters)
     }
 
     private var priceLabel: String {
-        query.roundTrip ? (step == 1 ? "Aller, par adulte" : "Retour, par adulte") : "Par adulte"
+        query.roundTrip ? (step == 1 ? "aller, par adulte" : "retour, par adulte") : "par adulte"
     }
 
     // MARK: Parcours aller / retour
@@ -207,19 +191,20 @@ struct ResultsView: View {
         var details = ["\(query.from) → \(query.to)", step == 1 ? cheapest.map { "dès \(euros($0))" } ?? "" : outbound.map { Fmt.time($0.dep) } ?? ""]
         if query.roundTrip { details.append(step == 2 ? cheapest.map { "dès \(euros($0))" } ?? "" : retDate) }
         let total: Int? = step == 2 ? outbound.flatMap { o in cheapest.map { o.price + $0 } } : cheapest
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("\(current + 1)/\(steps.count)")
-                    .font(.caption.weight(.bold)).foregroundStyle(.tint)
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(Color.accentColor.opacity(0.12), in: Capsule())
-                Text(step == 2 ? "Choisissez le retour" : query.roundTrip ? "Choisissez l'aller" : "Choisissez votre vol")
-                    .font(.title3.weight(.bold))
-                    .contentTransition(.opacity)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(store.city(leg.from)) → \(store.city(leg.to))").display(22).foregroundStyle(Theme.ink).lineLimit(1).minimumScaleFactor(0.8)
+                    Text("\(Day.long(leg.date)) · \(Fmt.plural(query.passengers, "voyageur")) · \(query.cabin.label)")
+                        .font(.inter(13)).foregroundStyle(Theme.muted).lineLimit(1)
+                }
                 Spacer()
                 if let total {
-                    Text("dès \(euros(total))").font(.headline).monospacedDigit()
-                        .contentTransition(.numericText(value: Double(total)))
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text("dès").font(.inter(11)).foregroundStyle(Theme.faint)
+                        Text(euros(total)).font(.inter(19, .bold)).foregroundStyle(Theme.ink).monospacedDigit()
+                            .contentTransition(.numericText(value: Double(total)))
+                    }
                 }
             }
             FlightPathProgress(steps: steps, current: current, details: details)
@@ -229,42 +214,85 @@ struct ResultsView: View {
             if step == 2, let o = outbound {
                 HStack(spacing: 10) {
                     AirlineLogo(code: o.mainAirline, size: 24)
-                    Text("Aller : \(Fmt.time(o.dep)) → \(Fmt.time(o.arr)) · \(euros(o.price))").font(.subheadline)
+                    Text("Aller : \(Fmt.time(o.dep)) → \(Fmt.time(o.arr)) · \(euros(o.price))").font(.inter(14, .medium)).foregroundStyle(Theme.ink)
                     Spacer()
                     Button("Changer") { withAnimation(.spring(duration: 0.45)) { step = 1; outbound = nil }; Task { await load() } }
-                        .font(.subheadline.weight(.semibold))
+                        .font(.inter(14, .semibold)).foregroundStyle(Theme.accent)
                 }
                 .padding(10)
-                .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(Theme.gray, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .padding(.vertical, 6)
+        .padding(16)
+        .background(.white, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
         .animation(.spring(duration: 0.5), value: step)
         .animation(.snappy, value: total)
     }
-    enum TileState { case current, done, todo }
-    private func journeyTile(title: String, from: String, to: String, date: String, state: TileState, chosen: FlightResult?) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 4) {
-                if state == .done { Image(systemName: "checkmark.circle.fill") }
-                Text(title)
-            }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(state == .current ? Color.accentColor : state == .done ? Color.green : Color.secondary)
-            Text("\(from) → \(to)").font(.headline).foregroundStyle(state == .todo ? .secondary : .primary)
-            if let c = chosen {
-                Text("\(Fmt.time(c.dep))–\(Fmt.time(c.arr)) · \(euros(c.price))").font(.caption).foregroundStyle(.secondary)
-            } else {
-                Text(Day.short(date)).font(.caption).foregroundStyle(.secondary)
+
+    // MARK: Tri façon site : trois tuiles avec prix et durée
+    private var sortTiles: some View {
+        let options: [SortOrder] = [.best, .cheap, .fast]
+        return HStack(spacing: 8) {
+            ForEach(options) { s in
+                let on = sort == s
+                let top = sorted(results.filter { filters.passes($0, airlines: store.airlines) }, by: s).first
+                Button { sort = s } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(s.label).font(.inter(12, .semibold)).foregroundStyle(on ? Theme.accent : Theme.muted).lineLimit(1)
+                        Text(top.map { euros($0.price) } ?? "—").font(.inter(17, .bold)).foregroundStyle(Theme.ink).monospacedDigit()
+                        Text(top.map { Fmt.duration($0.duration) } ?? " ").font(.inter(12)).foregroundStyle(Theme.faint)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12).padding(.vertical, 10)
+                    .background(.white, in: RoundedRectangle(cornerRadius: Theme.radiusM, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.radiusM, style: .continuous).strokeBorder(on ? Theme.accent : .clear, lineWidth: 2))
+                }
+                .buttonStyle(PressableStyle())
+                .accessibilityAddTraits(on ? .isSelected : [])
+                .redacted(reason: loading ? .placeholder : [])
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: Barre d'outils : nombre de vols, bagage, filtres
+    private var toolbar: some View {
+        HStack(spacing: 8) {
+            Text(loading ? "Recherche…" : "\(Fmt.plural(filtered.count, "vol"))\(filtered.count != results.count ? " sur \(results.count)" : "")")
+                .font(.inter(14, .medium)).foregroundStyle(Theme.muted)
+                .contentTransition(.numericText())
+            Spacer()
+            ChipButton(label: "Bagage inclus", on: user.bagIncluded) { user.bagIncluded.toggle() }
+            Button { showFilters = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "slider.horizontal.3").font(.system(size: 13, weight: .semibold))
+                    Text("Filtres")
+                    if filters.activeCount > 0 {
+                        Text("\(filters.activeCount)").font(.inter(12, .bold)).foregroundStyle(Theme.accent)
+                            .frame(minWidth: 18, minHeight: 18).background(.white, in: Circle())
+                    }
+                }
+                .font(.inter(14, .semibold))
+                .foregroundStyle(filters.activeCount > 0 ? Color.white : Theme.ink)
+                .padding(.horizontal, 14).frame(height: 34)
+                .background(filters.activeCount > 0 ? Theme.accent : Color.white, in: Capsule())
+            }
+            .buttonStyle(PressableStyle())
+            .accessibilityLabel("Filtres, \(filters.activeCount) actif\(filters.activeCount > 1 ? "s" : "")")
+        }
+    }
+
+    private func insightCard(_ insight: Insight) -> some View {
+        let color = insight.level < 0 ? Theme.good : insight.level > 0 ? Theme.warn : Theme.muted
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: insight.level < 0 ? "arrow.down.right" : insight.level > 0 ? "exclamationmark" : "equal")
+                .font(.system(size: 12, weight: .bold)).foregroundStyle(color)
+                .frame(width: 26, height: 26).background(color.opacity(0.1), in: Circle())
+            Text(insight.text).font(.inter(14)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
         .padding(12)
-        .background(state == .current ? Color(.systemBackground) : Color(.secondarySystemFill), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(state == .current ? Color.accentColor : .clear, lineWidth: 2))
-        .accessibilityElement(children: .combine)
-        .accessibilityHint(state == .done ? "Touchez pour changer l'aller" : "")
+        .background(.white, in: RoundedRectangle(cornerRadius: Theme.radiusM, style: .continuous))
     }
 
     // MARK: Jours voisins
@@ -285,20 +313,21 @@ struct ResultsView: View {
                             Task { await load() }
                         } label: {
                             VStack(spacing: 2) {
-                                Text(Day.format(item.date, "EEEd")).font(.caption).foregroundStyle(selected ? Color.white.opacity(0.8) : Color.secondary)
-                                Text(item.price.map(euros) ?? "—").font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(selected ? Color.white : item.price == minP ? Color.green : item.price == nil ? Color.secondary : Color.primary)
+                                Text(Day.format(item.date, "EEEd")).font(.inter(12, .medium)).foregroundStyle(selected ? Color.white.opacity(0.75) : Theme.muted)
+                                Text(item.price.map(euros) ?? "—").font(.inter(15, .semibold))
+                                    .foregroundStyle(selected ? Color.white : item.price == minP ? Theme.good : item.price == nil ? Theme.faint : Theme.ink)
                             }
-                            .frame(width: 76, height: 56)
-                            .background(selected ? Color.accentColor : Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .frame(width: 74, height: 54)
+                            .background(selected ? Theme.ink : Color.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableStyle())
                         .disabled(item.price == nil)
                         .id(item.date)
                         .accessibilityLabel("\(Day.long(item.date)), \(item.price.map { "à partir de \(euros($0))" } ?? "aucun vol")")
                         .accessibilityAddTraits(selected ? .isSelected : [])
                     }
                 }
+                .padding(.horizontal, 16)
             }
             .onAppear { proxy.scrollTo(leg.date, anchor: .center) }
             .onChange(of: strip.count) { _, _ in proxy.scrollTo(leg.date, anchor: .center) }

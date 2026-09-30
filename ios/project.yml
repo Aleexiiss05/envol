@@ -28,6 +28,8 @@ targets:
       path: Envol/Info.plist
       properties:
         CFBundleDisplayName: Envol
+        UIAppFonts: [Inter-Regular.ttf, Inter-Medium.ttf, Inter-SemiBold.ttf, Inter-Bold.ttf, Inter-ExtraBold.ttf]
+        UIUserInterfaceStyle: Light
         CFBundleDevelopmentRegion: fr
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]

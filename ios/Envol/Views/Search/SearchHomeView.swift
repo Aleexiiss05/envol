@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Accueil « Vols » : même construction que la page d'accueil du site (hero, carte de recherche, hublots, petits prix).
 struct SearchHomeView: View {
     @Environment(UserData.self) private var user
     @State private var query = SearchQuery()
@@ -11,6 +12,7 @@ struct SearchHomeView: View {
     @State private var shake = false
     @State private var didInit = false
     @State private var forYou: [FlightStore.Destination] = []
+    @State private var swapTurns = 0.0
     private let store = FlightStore.shared
 
     enum PlaceField: String, Identifiable { case from, to; var id: String { rawValue } }
@@ -18,19 +20,20 @@ struct SearchHomeView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    greeting
+                VStack(alignment: .leading, spacing: 0) {
+                    brandBar
+                    hero
                     searchCard
-                    if !user.recents.isEmpty { recents }
-                    if !forYou.isEmpty { forYouSection }
-                    featured
-                    deals
+                        .padding(.horizontal, 16)
+                        .padding(.top, 20)
+                    if !user.recents.isEmpty { recents.padding(.top, 28) }
+                    if !forYou.isEmpty { forYouSection.padding(.top, 36) }
+                    featured.padding(.top, 36)
+                    deals.padding(.top, 36)
                 }
-                .padding(.horizontal)
                 .padding(.bottom, 32)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Vols")
+            .background(.white)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: SearchQuery.self) { q in ResultsView(query: q) }
             .sheet(item: $picking) { field in
@@ -56,49 +59,232 @@ struct SearchHomeView: View {
         }
     }
 
-    // MARK: En-tête personnalisé
-    private var greeting: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(user.profile.greeting).font(.largeTitle.weight(.bold))
-            Text("Où allons-nous au départ de \(store.city(query.from)) ?").font(.title3).foregroundStyle(.secondary)
+    // MARK: En-tête (logo + salutation, comme la barre du site)
+    private var brandBar: some View {
+        HStack {
+            BrandWordmark(size: 20)
+            Spacer()
+            if !user.profile.firstName.isEmpty {
+                Text(String(user.profile.firstName.prefix(1)).uppercased())
+                    .font(.inter(14, .semibold)).foregroundStyle(Theme.ink)
+                    .frame(width: 34, height: 34).background(Theme.gray, in: Circle())
+                    .accessibilityHidden(true)
+            }
         }
-        .padding(.top, 12)
+        .frame(height: 44)
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
+    }
+
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(user.profile.greeting).font(.inter(15, .medium)).foregroundStyle(Theme.muted)
+            Text("Le ciel,\nau juste prix.").display(38).foregroundStyle(Theme.ink)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 18)
+        .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
     }
 
-    private var forYouSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Pour vous").font(.title3.weight(.bold))
-                Text(forYouSubtitle).font(.subheadline).foregroundStyle(.secondary)
+    // MARK: Carte de recherche (reprend .search du site)
+    private var searchCard: some View {
+        VStack(spacing: 12) {
+            SegmentedPicker(options: [(true, "Aller-retour"), (false, "Aller simple")], selection: $query.roundTrip)
+
+            // Départ / arrivée : blocs gris avec bouton d'inversion au milieu
+            ZStack {
+                VStack(spacing: 4) {
+                    placeRow("De", code: query.from, top: true) { picking = .from }
+                    placeRow("À", code: query.to, top: false) { picking = .to }
+                }
+                Button {
+                    guard !query.to.isEmpty else { return }
+                    withAnimation(.spring(duration: 0.35)) { let t = query.from; query.from = query.to; query.to = t; swapTurns += 180 }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down").font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                        .rotationEffect(.degrees(swapTurns))
+                        .frame(width: 36, height: 36)
+                        .background(.white, in: Circle())
+                        .overlay(Circle().strokeBorder(Theme.gray, lineWidth: 3))
+                }
+                .buttonStyle(PressableStyle())
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.trailing, 18)
+                .accessibilityLabel("Inverser départ et arrivée")
+                .sensoryFeedback(.impact(weight: .light), trigger: query.from)
             }
+
+            HStack(spacing: 4) {
+                Button { showDates = true } label: {
+                    field("Aller", Day.format(query.dep, "EEEdMMM"), symbol: "calendar")
+                }
+                .buttonStyle(PressableStyle())
+                .accessibilityLabel("Aller : \(Day.long(query.dep))")
+                if query.roundTrip {
+                    Button { showDates = true } label: {
+                        field("Retour", Day.format(query.ret, "EEEdMMM"), symbol: nil)
+                    }
+                    .buttonStyle(PressableStyle())
+                    .accessibilityLabel("Retour : \(Day.long(query.ret))")
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusM, style: .continuous))
+
+            Button { showPassengers = true } label: {
+                field("Voyageurs", "\(Fmt.plural(query.passengers, "voyageur")) · \(query.cabin.label)", symbol: "person")
+            }
+            .buttonStyle(PressableStyle())
+
+            HStack(spacing: 8) {
+                ChipButton(label: "Direct", on: query.directOnly) { withAnimation(.snappy) { query.directOnly.toggle() } }
+                ChipButton(label: "Bagage en soute", on: query.bagIncluded) { withAnimation(.snappy) { query.bagIncluded.toggle() } }
+                Spacer(minLength: 0)
+            }
+
+            Button(action: submit) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").font(.system(size: 15, weight: .semibold))
+                    Text("Rechercher")
+                }
+            }
+            .buttonStyle(PillButtonStyle(fullWidth: true))
+            .sensoryFeedback(.error, trigger: shake)
+        }
+        .padding(14)
+        .background(.white, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Theme.line))
+        .shadow(color: .black.opacity(0.06), radius: 24, y: 10)
+        .animation(.spring(duration: 0.35), value: query.roundTrip)
+    }
+
+    private func placeRow(_ label: String, code: String, top: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Text(label).font(.inter(13, .medium)).foregroundStyle(Theme.faint).frame(width: 22, alignment: .leading)
+                if code.isEmpty {
+                    Text("Où allez-vous ?").font(.inter(17, .medium)).foregroundStyle(Theme.faint)
+                } else {
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(store.city(code)).font(.inter(17, .semibold)).foregroundStyle(Theme.ink)
+                            Text(code).font(.inter(13, .semibold)).foregroundStyle(Theme.muted)
+                        }
+                        Text(store.subtitle(code)).font(.inter(12)).foregroundStyle(Theme.faint).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 56)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 60)
+            .background(Theme.gray, in: UnevenRoundedRectangle(
+                topLeadingRadius: top ? Theme.radiusM : 6, bottomLeadingRadius: top ? 6 : Theme.radiusM,
+                bottomTrailingRadius: top ? 6 : Theme.radiusM, topTrailingRadius: top ? Theme.radiusM : 6, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel(code.isEmpty ? "\(label == "De" ? "Départ" : "Arrivée") : à choisir" : "\(label == "De" ? "Départ" : "Arrivée") : \(store.city(code)), \(code)")
+    }
+
+    private func field(_ label: String, _ value: String, symbol: String?) -> some View {
+        HStack(spacing: 10) {
+            if let symbol { Image(systemName: symbol).font(.system(size: 14)).foregroundStyle(Theme.faint) }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label).font(.inter(12, .medium)).foregroundStyle(Theme.faint)
+                Text(value).font(.inter(15, .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 54)
+        .frame(maxWidth: .infinity)
+        .background(Theme.gray, in: RoundedRectangle(cornerRadius: Theme.radiusM, style: .continuous))
+    }
+
+    private func submit() {
+        guard !query.to.isEmpty, store.expand(query.from) != store.expand(query.to) else { shake.toggle(); picking = .to; return }
+        if query.roundTrip && query.ret < query.dep { query.ret = Day.add(query.dep, 7) }
+        user.remember(query)
+        user.bagIncluded = query.bagIncluded
+        path.append(query)
+    }
+
+    // MARK: Sections
+    private func sectionHead(_ title: String, _ subtitle: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).display(22, .bold).foregroundStyle(Theme.ink)
+            if let subtitle { Text(subtitle).font(.inter(14)).foregroundStyle(Theme.muted) }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    private var recents: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHead("Recherches récentes")
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 14) {
+                HStack(spacing: 8) {
+                    ForEach(user.recents, id: \.self) { r in
+                        Button {
+                            query = r
+                            if query.dep < Day.today { query.dep = Day.add(Day.today, 14); query.ret = Day.add(query.dep, 7) }
+                            submit()
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "clock.arrow.circlepath").font(.system(size: 13)).foregroundStyle(Theme.faint)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text("\(store.city(r.from)) → \(store.city(r.to))").font(.inter(14, .semibold)).foregroundStyle(Theme.ink)
+                                    Text(Day.short(r.dep)).font(.inter(12)).foregroundStyle(Theme.muted)
+                                }
+                            }
+                            .padding(.horizontal, 14).frame(height: 50)
+                            .background(Theme.gray, in: Capsule())
+                        }
+                        .buttonStyle(PressableStyle())
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+    }
+
+    private var forYouSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHead("Pour vous", forYouSubtitle)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 12) {
                     ForEach(forYou) { d in
                         Button { open(d) } label: {
-                            ZStack(alignment: .bottomLeading) {
-                                PlacePhoto(code: d.code, width: 600).frame(width: 260, height: 190).clipped()
-                                LinearGradient(colors: [.clear, .black.opacity(0.6)], startPoint: .center, endPoint: .bottom)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(store.city(d.code)).font(.title3.weight(.bold))
-                                    Text("dès \(euros(d.price)) · \(Day.short(d.date))").font(.subheadline)
+                            VStack(alignment: .leading, spacing: 10) {
+                                PlacePhoto(code: d.code, width: 600)
+                                    .frame(width: 240, height: 160)
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                                HStack(alignment: .firstTextBaseline) {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(store.city(d.code)).font(.inter(16, .semibold)).foregroundStyle(Theme.ink)
+                                        Text("\(Day.short(d.date)) · \(Fmt.duration(d.duration))").font(.inter(13)).foregroundStyle(Theme.muted)
+                                    }
+                                    Spacer()
+                                    Text(euros(d.price)).font(.inter(16, .bold)).foregroundStyle(Theme.ink)
                                 }
-                                .foregroundStyle(.white).padding(14)
+                                .padding(.horizontal, 4)
                             }
-                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                            .frame(width: 240)
                         }
                         .buttonStyle(PressableStyle())
                         .scrollTransition { content, phase in
-                            content.scaleEffect(phase.isIdentity ? 1 : 0.92).opacity(phase.isIdentity ? 1 : 0.7)
+                            content.scaleEffect(phase.isIdentity ? 1 : 0.94).opacity(phase.isIdentity ? 1 : 0.7)
                         }
                         .accessibilityLabel("\(store.city(d.code)), dès \(euros(d.price))")
                     }
                 }
                 .scrollTargetLayout()
+                .padding(.horizontal, 20)
             }
             .scrollTargetBehavior(.viewAligned)
-            .scrollClipDisabled()
         }
     }
     private var forYouSubtitle: String {
@@ -115,187 +301,64 @@ struct SearchHomeView: View {
         }
     }
 
-    // MARK: Formulaire
-    private var searchCard: some View {
-        VStack(spacing: 0) {
-            Picker("Type de voyage", selection: $query.roundTrip) {
-                Text("Aller-retour").tag(true)
-                Text("Aller simple").tag(false)
-            }
-            .pickerStyle(.segmented)
-            .padding(12)
-
-            ZStack(alignment: .trailing) {
-                VStack(spacing: 0) {
-                    placeRow("Départ", code: query.from) { picking = .from }
-                    Divider().padding(.leading, 16)
-                    placeRow("Arrivée", code: query.to) { picking = .to }
-                }
-                Button {
-                    guard !query.to.isEmpty else { return }
-                    withAnimation(.spring(duration: 0.35)) { let t = query.from; query.from = query.to; query.to = t }
-                } label: {
-                    Image(systemName: "arrow.up.arrow.down").font(.body.weight(.semibold))
-                        .frame(width: 38, height: 38).background(.background, in: Circle())
-                        .overlay(Circle().strokeBorder(.quaternary))
-                }
-                .padding(.trailing, 16)
-                .accessibilityLabel("Inverser départ et arrivée")
-                .sensoryFeedback(.impact(weight: .light), trigger: query.from)
-            }
-            Divider().padding(.leading, 16)
-            Button { showDates = true } label: {
-                HStack {
-                    field("Aller", Day.format(query.dep, "EEEdMMM"))
-                    if query.roundTrip {
-                        Divider().frame(height: 36)
-                        field("Retour", Day.format(query.ret, "EEEdMMM"))
-                    }
-                }
-                .padding(.horizontal, 16).padding(.vertical, 10)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(query.roundTrip ? "Dates : aller \(Day.long(query.dep)), retour \(Day.long(query.ret))" : "Date : \(Day.long(query.dep))")
-            Divider().padding(.leading, 16)
-            Button { showPassengers = true } label: {
-                field("Voyageurs", "\(Fmt.plural(query.passengers, "voyageur")) · \(query.cabin.label)")
-                    .padding(.horizontal, 16).padding(.vertical, 10)
-            }
-            .buttonStyle(.plain)
-            Divider().padding(.leading, 16)
-            Toggle("Vols directs uniquement", isOn: $query.directOnly).padding(.horizontal, 16).padding(.vertical, 6)
-            Toggle("Bagage en soute inclus", isOn: $query.bagIncluded).padding(.horizontal, 16).padding(.vertical, 6)
-            Button(action: submit) {
-                Label("Rechercher", systemImage: "magnifyingglass").font(.headline).frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .buttonBorderShape(.capsule)
-            .padding(12)
-            .sensoryFeedback(.error, trigger: shake)
-        }
-        .background(.background, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .padding(.top, 8)
-    }
-
-    private func placeRow(_ label: String, code: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                if code.isEmpty {
-                    Text("Où allez-vous ?").font(.title3).foregroundStyle(.tertiary)
-                } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(code).font(.title3.weight(.bold))
-                        Text(store.city(code)).font(.title3)
-                    }
-                    Text(store.subtitle(code)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16).padding(.vertical, 10)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(code.isEmpty ? "\(label) : à choisir" : "\(label) : \(store.city(code)), \(code)")
-    }
-
-    private func field(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            Text(value).font(.body.weight(.semibold))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func submit() {
-        guard !query.to.isEmpty, store.expand(query.from) != store.expand(query.to) else { shake.toggle(); picking = .to; return }
-        if query.roundTrip && query.ret < query.dep { query.ret = Day.add(query.dep, 7) }
-        user.remember(query)
-        user.bagIncluded = query.bagIncluded
-        path.append(query)
-    }
-
-    // MARK: Récentes
-    private var recents: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Recherches récentes").font(.title3.weight(.bold))
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(user.recents, id: \.self) { r in
-                        Button {
-                            query = r
-                            if query.dep < Day.today { query.dep = Day.add(Day.today, 14); query.ret = Day.add(query.dep, 7) }
-                            submit()
-                        } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(store.city(r.from)) → \(store.city(r.to))").font(.subheadline.weight(.semibold))
-                                Text(Day.short(r.dep)).font(.caption).foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 14).padding(.vertical, 10)
-                            .background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: Hublots & petits prix
+    /// Bande grise « Destinations à la une » avec les hublots, comme sur le site
     private var featured: some View {
         let picks = featuredPicks()
-        return VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Destinations à la une").font(.title3.weight(.bold))
-                Text("Au départ de \(store.city(query.from)), meilleurs prix des prochaines semaines").font(.subheadline).foregroundStyle(.secondary)
-            }
+        return VStack(alignment: .leading, spacing: 16) {
+            sectionHead("Destinations à la une", "Depuis \(store.city(query.from)), les meilleurs prix des prochaines semaines")
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
+                HStack(spacing: 18) {
                     ForEach(picks) { d in
                         Button { open(d) } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Porthole(code: d.code).frame(width: 150)
-                                Text(store.city(d.code)).font(.headline)
-                                Text("dès \(euros(d.price))").font(.subheadline).foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 10) {
+                                Porthole(code: d.code).frame(width: 136)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(store.city(d.code)).font(.inter(16, .semibold)).foregroundStyle(Theme.ink)
+                                    Text("dès \(euros(d.price))").font(.inter(14)).foregroundStyle(Theme.muted)
+                                }
+                                .padding(.horizontal, 4)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableStyle())
                         .accessibilityLabel("\(store.city(d.code)), dès \(euros(d.price))")
                     }
                 }
-                .padding(.vertical, 6)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
             }
         }
+        .padding(.vertical, 24)
+        .background(Theme.gray)
     }
 
     private var deals: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Petits prix au départ de \(store.city(query.from))").font(.title3.weight(.bold))
-            VStack(spacing: 0) {
-                ForEach(Array(destinations.prefix(8).enumerated()), id: \.element.id) { i, d in
-                    if i > 0 { Divider().padding(.leading, 80) }
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHead("Petits prix", "Au départ de \(store.city(query.from))")
+            VStack(spacing: 8) {
+                ForEach(destinations.prefix(8)) { d in
                     Button { open(d) } label: {
                         HStack(spacing: 12) {
-                            PlacePhoto(code: d.code, width: 200).frame(width: 56, height: 56)
+                            PlacePhoto(code: d.code, width: 200).frame(width: 52, height: 52)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(store.city(d.code)).font(.body.weight(.semibold))
-                                Text("\(store.country(d.code)) · \(Fmt.duration(d.duration))\(d.direct ? " · direct" : "")").font(.caption).foregroundStyle(.secondary)
+                                Text(store.city(d.code)).font(.inter(16, .semibold)).foregroundStyle(Theme.ink)
+                                Text("\(store.country(d.code)) · \(Fmt.duration(d.duration))\(d.direct ? " · direct" : "")").font(.inter(13)).foregroundStyle(Theme.muted)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
-                                Text(euros(d.price)).font(.body.weight(.bold))
-                                Text(Day.short(d.date)).font(.caption).foregroundStyle(.secondary)
+                                Text(euros(d.price)).font(.inter(16, .bold)).foregroundStyle(Theme.ink)
+                                Text(Day.short(d.date)).font(.inter(12)).foregroundStyle(Theme.faint)
                             }
+                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.faint)
                         }
-                        .padding(.horizontal, 12).padding(.vertical, 10)
+                        .padding(10)
+                        .background(Theme.gray, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressableStyle())
                 }
             }
-            .background(.background, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .padding(.horizontal, 16)
         }
     }
 

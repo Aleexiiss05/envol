@@ -30,14 +30,14 @@ struct ExploreView: View {
             Map(position: $position, selection: Binding(get: { selected?.code }, set: { code in selected = visible.first { $0.code == code } })) {
                 if let o = store.airportByCode[store.expand(origin)[0]] {
                     Annotation(store.city(origin), coordinate: o.coordinate) {
-                        Image(systemName: "airplane.departure").font(.caption.bold()).foregroundStyle(.white)
+                        Image(systemName: "airplane.departure").font(.inter(.caption, .bold)).foregroundStyle(.white)
                             .padding(7).background(.tint, in: Circle())
                     }
                     ForEach(visible) { d in
                         if let a = store.airportByCode[d.airport] {
                             let labelled = labelledCodes.contains(d.code) || selected?.code == d.code
                             MapPolyline(coordinates: [o.coordinate, a.coordinate], contourStyle: .geodesic)
-                                .stroke(Color.accentColor.opacity(selected?.code == d.code ? 0.9 : 0.18), lineWidth: selected?.code == d.code ? 2 : 1)
+                                .stroke(Theme.accent.opacity(selected?.code == d.code ? 0.9 : 0.18), lineWidth: selected?.code == d.code ? 2 : 1)
                             Annotation(store.city(d.code), coordinate: a.coordinate, anchor: labelled ? .bottom : .center) {
                                 if labelled { pricePin(d) } else { priceDot(d) }
                             }
@@ -67,7 +67,7 @@ struct ExploreView: View {
     /// Seules les destinations les moins chères portent une étiquette ; les autres sont des points (touchez pour voir le prix)
     private var labelledCodes: Set<String> { Set(visible.sorted { $0.price < $1.price }.prefix(14).map { $0.code }) }
     private func priceDot(_ d: FlightStore.Destination) -> some View {
-        Circle().fill(d.price <= cheapThreshold ? Color.green : Color.secondary)
+        Circle().fill(d.price <= cheapThreshold ? Theme.good : Theme.faint)
             .frame(width: 10, height: 10)
             .overlay(Circle().strokeBorder(.white, lineWidth: 2))
             .shadow(color: .black.opacity(0.2), radius: 1.5, y: 1)
@@ -80,10 +80,10 @@ struct ExploreView: View {
         let isSel = selected?.code == d.code
         let good = d.price <= cheapThreshold
         return Text(euros(d.price))
-            .font(.caption.weight(.semibold)).monospacedDigit()
+            .font(.inter(.caption, .semibold)).monospacedDigit()
             .padding(.horizontal, 7).padding(.vertical, 4)
-            .foregroundStyle(isSel ? Color.white : good ? Color.green : Color.primary)
-            .background(isSel ? Color.accentColor : Color(.systemBackground), in: Capsule())
+            .foregroundStyle(isSel ? Color.white : good ? Theme.good : Theme.ink)
+            .background(isSel ? Theme.accent : Color.white, in: Capsule())
             .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
             .scaleEffect(isSel ? 1.15 : 1)
             .animation(.spring(duration: 0.3), value: isSel)
@@ -105,9 +105,9 @@ struct ExploreView: View {
                 .padding(.horizontal)
             }
             HStack {
-                Text("Budget").font(.subheadline.weight(.medium))
+                Text("Budget").font(.inter(.subheadline, .medium))
                 Slider(value: $budget, in: 50...2000, step: 10)
-                Text(budget >= 2000 ? "Illimité" : "≤ \(euros(Int(budget)))").font(.subheadline).monospacedDigit().frame(width: 84, alignment: .trailing)
+                Text(budget >= 2000 ? "Illimité" : "≤ \(euros(Int(budget)))").font(.inter(.subheadline)).monospacedDigit().frame(width: 84, alignment: .trailing)
             }
             .padding(.horizontal)
         }
@@ -116,19 +116,12 @@ struct ExploreView: View {
     }
 
     private func chip(_ label: String, on: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label).font(.subheadline.weight(on ? .semibold : .regular))
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .foregroundStyle(on ? Color.white : Color.primary)
-                .background(on ? Color.primary : Color(.tertiarySystemFill), in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(on ? .isSelected : [])
+        ChipButton(label: label, on: on, action: action)
     }
 
     private var summary: some View {
         Text("\(Fmt.plural(visible.count, "destination")) · touchez un prix")
-            .font(.subheadline).foregroundStyle(.secondary)
+            .font(.inter(.subheadline)).foregroundStyle(.secondary)
             .frame(maxWidth: .infinity).padding(12).background(.regularMaterial)
     }
 
@@ -136,9 +129,9 @@ struct ExploreView: View {
         HStack(spacing: 12) {
             PlacePhoto(code: d.code, width: 300).frame(width: 72, height: 72).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(store.city(d.code)).font(.headline)
-                Text("\(store.country(d.code)) · \(Fmt.duration(d.duration))\(d.direct ? " · direct" : "")").font(.caption).foregroundStyle(.secondary)
-                Text("dès \(euros(d.price)) le \(Day.format(d.date, "dMMM"))").font(.subheadline.weight(.semibold))
+                Text(store.city(d.code)).font(.inter(.headline))
+                Text("\(store.country(d.code)) · \(Fmt.duration(d.duration))\(d.direct ? " · direct" : "")").font(.inter(.caption)).foregroundStyle(.secondary)
+                Text("dès \(euros(d.price)) le \(Day.format(d.date, "dMMM"))").font(.inter(.subheadline, .semibold))
             }
             Spacer()
             Button("Voir") {
@@ -146,10 +139,11 @@ struct ExploreView: View {
                 q.from = origin; q.to = d.code; q.dep = d.date; q.ret = Day.add(d.date, 7)
                 path.append(q)
             }
-            .buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+            .buttonStyle(CompactPillStyle())
         }
         .padding(12)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(.white, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        .shadow(color: .black.opacity(0.12), radius: 20, y: 8)
         .padding(.horizontal).padding(.bottom, 8)
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }

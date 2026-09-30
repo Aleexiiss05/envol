@@ -18,10 +18,10 @@ struct PlacePicker: View {
                     dismiss()
                 } label: {
                     HStack(spacing: 12) {
-                        Text(code).font(.subheadline.weight(.bold)).frame(width: 44, alignment: .leading)
+                        Text(code).font(.inter(.subheadline, .bold)).frame(width: 44, alignment: .leading)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(store.city(code)).font(.body)
-                            Text(store.subtitle(code)).font(.caption).foregroundStyle(.secondary)
+                            Text(store.city(code)).font(.inter(.body))
+                            Text(store.subtitle(code)).font(.inter(.caption)).foregroundStyle(.secondary)
                         }
                         Spacer()
                         if code == current { Image(systemName: "checkmark").foregroundStyle(.tint) }
@@ -78,7 +78,7 @@ struct DatesSheet: View {
                         Circle().fill(.green).frame(width: 6, height: 6)
                         Text("Prix le plus bas par adulte. En vert : les jours les moins chers du mois.")
                     }
-                    .font(.caption).foregroundStyle(.secondary).padding(10)
+                    .font(.inter(.caption)).foregroundStyle(.secondary).padding(10)
                 }
             }
             .navigationTitle(pickingReturn ? "Date de retour" : "Date d'aller")
@@ -95,10 +95,10 @@ struct DatesSheet: View {
         let monthPrices = days.compactMap { prices[$0] }.sorted()
         let cheapLimit = monthPrices.isEmpty ? 0 : monthPrices[monthPrices.count / 3]
         return VStack(alignment: .leading, spacing: 8) {
-            Text(Day.format(first, "MMMMyyyy").capitalized).font(.headline)
+            Text(Day.format(first, "MMMMyyyy").capitalized).font(.inter(.headline))
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 4) {
                 ForEach(["L", "M", "M", "J", "V", "S", "D"].indices, id: \.self) { i in
-                    Text(["L", "M", "M", "J", "V", "S", "D"][i]).font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
+                    Text(["L", "M", "M", "J", "V", "S", "D"][i]).font(.inter(.caption2, .semibold)).foregroundStyle(.tertiary)
                 }
                 ForEach(0..<offset, id: \.self) { _ in Color.clear.frame(height: 48) }
                 ForEach(days, id: \.self) { d in dayCell(d, cheap: (prices[d] ?? .max) <= cheapLimit) }
@@ -118,9 +118,9 @@ struct DatesSheet: View {
             }
         } label: {
             VStack(spacing: 1) {
-                Text("\(Day.dayOfMonth(d))").font(.body.weight(selected ? .bold : .regular))
+                Text("\(Day.dayOfMonth(d))").font(.inter(.body, selected ? .bold : .regular))
                 if let p = prices[d], !disabled {
-                    Text(euros(p)).font(.system(size: 10, weight: cheap ? .bold : .regular)).foregroundStyle(selected ? Color.white.opacity(0.85) : cheap ? Color.green : Color.secondary)
+                    Text(euros(p)).font(.inter(10, cheap ? .bold : .regular)).foregroundStyle(selected ? Color.white.opacity(0.85) : cheap ? Color.green : Color.secondary)
                         .minimumScaleFactor(0.7).lineLimit(1)
                 }
             }
@@ -188,7 +188,7 @@ struct PassengersSheet: View {
     private func row(_ title: String, _ sub: String, _ n: Int) -> some View {
         VStack(alignment: .leading) {
             Text("\(title) : \(n)")
-            Text(sub).font(.caption).foregroundStyle(.secondary)
+            Text(sub).font(.inter(.caption)).foregroundStyle(.secondary)
         }
     }
 }

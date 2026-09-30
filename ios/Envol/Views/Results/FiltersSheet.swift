@@ -34,7 +34,7 @@ struct FiltersSheet: View {
                     Toggle(isOn: $bagIncluded) {
                         VStack(alignment: .leading) {
                             Text("Prix avec bagage en soute")
-                            Text("Ajoute le coût d'un bagage aux tarifs qui ne l'incluent pas").font(.caption).foregroundStyle(.secondary)
+                            Text("Ajoute le coût d'un bagage aux tarifs qui ne l'incluent pas").font(.inter(.caption)).foregroundStyle(.secondary)
                         }
                     }
                     Toggle("Bagage en soute inclus", isOn: $filters.holdBag)
@@ -56,10 +56,7 @@ struct FiltersSheet: View {
                 Section("Heure de départ") { buckets($filters.depBuckets) }
                 Section("Heure d'arrivée") { buckets($filters.arrBuckets) }
                 Section("Compagnies") {
-                    Picker("Type", selection: $filters.kind) {
-                        Text("Toutes").tag(0); Text("Classiques").tag(1); Text("Low-cost").tag(2)
-                    }
-                    .pickerStyle(.segmented)
+                    SegmentedPicker(options: [(0, "Toutes"), (1, "Classiques"), (2, "Low-cost")], selection: $filters.kind)
                     ForEach(carriers, id: \.self) { c in
                         Toggle(isOn: Binding(get: { !filters.excludedAirlines.contains(c) }, set: { on in
                             if on { filters.excludedAirlines.remove(c) } else { filters.excludedAirlines.insert(c) }
@@ -68,7 +65,7 @@ struct FiltersSheet: View {
                                 AirlineLogo(code: c, size: 24)
                                 Text(store.airlines[c]?.name ?? c)
                                 Spacer()
-                                Text(minPrice { $0.carriers.contains(c) }).foregroundStyle(.secondary).font(.subheadline)
+                                Text(minPrice { $0.carriers.contains(c) }).foregroundStyle(.secondary).font(.inter(.subheadline))
                             }
                         }
                     }
@@ -80,7 +77,7 @@ struct FiltersSheet: View {
                     Toggle(isOn: $filters.allowSelfTransfer) {
                         VStack(alignment: .leading) {
                             Text("Billets séparés")
-                            Text("Deux compagnies, souvent moins cher, correspondance non protégée").font(.caption).foregroundStyle(.secondary)
+                            Text("Deux compagnies, souvent moins cher, correspondance non protégée").font(.inter(.caption)).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -93,10 +90,10 @@ struct FiltersSheet: View {
             }
             .safeAreaInset(edge: .bottom) {
                 Button { dismiss() } label: {
-                    Text(matching > 0 ? "Afficher \(Fmt.plural(matching, "vol"))" : "Aucun vol : assouplissez les filtres").font(.headline).frame(maxWidth: .infinity)
+                    Text(matching > 0 ? "Afficher \(Fmt.plural(matching, "vol"))" : "Aucun vol : assouplissez les filtres")
                 }
-                .buttonStyle(.borderedProminent).controlSize(.large).buttonBorderShape(.capsule)
-                .padding().background(.bar)
+                .buttonStyle(PillButtonStyle(fullWidth: true))
+                .padding(.horizontal, 16).padding(.vertical, 10).background(.white)
             }
             .sensoryFeedback(.selection, trigger: filters)
         }
@@ -112,7 +109,7 @@ struct FiltersSheet: View {
         Toggle(isOn: Binding(get: { filters.stops.contains(n) }, set: { on in
             if on { filters.stops.insert(n) } else { filters.stops.remove(n) }
         })) {
-            HStack { Text(label); Spacer(); Text(minPrice { min($0.stops, 2) == n }).foregroundStyle(.secondary).font(.subheadline) }
+            HStack { Text(label); Spacer(); Text(minPrice { min($0.stops, 2) == n }).foregroundStyle(.secondary).font(.inter(.subheadline)) }
         }
     }
 
@@ -127,16 +124,16 @@ struct FiltersSheet: View {
                     HStack {
                         Image(systemName: items[i].2)
                         VStack(alignment: .leading, spacing: 0) {
-                            Text(items[i].0).font(.subheadline.weight(.medium))
-                            Text(items[i].1).font(.caption2).foregroundStyle(.secondary)
+                            Text(items[i].0).font(.inter(.subheadline, .medium))
+                            Text(items[i].1).font(.inter(.caption2)).foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 0)
                     }
                     .padding(10)
                     .frame(maxWidth: .infinity)
-                    .background(on ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(on ? Color.accentColor : .clear, lineWidth: 1.5))
-                    .foregroundStyle(on ? Color.accentColor : Color.primary)
+                    .background(on ? Theme.accentBg : Theme.gray, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(on ? Theme.accent : .clear, lineWidth: 1.5))
+                    .foregroundStyle(on ? Theme.accent : Theme.ink)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(on ? .isSelected : [])

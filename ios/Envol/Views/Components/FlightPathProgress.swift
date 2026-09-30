@@ -34,7 +34,7 @@ private struct PlaneOnArc: View, Animatable {
     var body: some View {
         let p = FlightArc.point(t, in: size)
         Image(systemName: "airplane")
-            .font(.system(size: planeSize, weight: .semibold))
+            .font(.inter(planeSize, .semibold))
             .foregroundStyle(.tint)
             .shadow(color: Color.accentColor.opacity(0.35), radius: 6, y: 4)
             .rotationEffect(.radians(FlightArc.angle(t, in: size)))
@@ -74,10 +74,10 @@ struct FlightPathProgress: View {
                     if !compact || i == current {
                         VStack(spacing: 1) {
                             Text(steps[i])
-                                .font(i == current ? .caption.weight(.bold) : .caption2)
+                                .font(i == current ? .inter(.caption, .bold) : .inter(.caption2))
                                 .foregroundStyle(i == current ? Color.accentColor : i < current ? Color.primary : Color.secondary)
                             if i < details.count, !details[i].isEmpty, i <= current {
-                                Text(details[i]).font(.caption2).foregroundStyle(i == current ? Color.accentColor : Color.secondary)
+                                Text(details[i]).font(.inter(.caption2)).foregroundStyle(i == current ? Color.accentColor : Color.secondary)
                             }
                         }
                         .fixedSize()

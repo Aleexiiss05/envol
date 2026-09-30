@@ -74,7 +74,7 @@ struct FlightDetailView: View {
                         LabeledContent { Text(euros(total)).bold() } label: { Text("Total, payé à la compagnie").bold() }
                     }
                 } else {
-                    Section { Text("Prix de l'aller seul. Vous choisirez ensuite le retour ; le total sera recalculé.").font(.footnote).foregroundStyle(.secondary) }
+                    Section { Text("Prix de l'aller seul. Vous choisirez ensuite le retour ; le total sera recalculé.").font(.inter(.footnote)).foregroundStyle(.secondary) }
                 }
             }
             .navigationTitle(outbound != nil ? "Votre aller-retour" : "Détail du vol")
@@ -91,16 +91,16 @@ struct FlightDetailView: View {
             .safeAreaInset(edge: .bottom) {
                 HStack {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(pendingOutbound ? "Aller, par adulte" : "Total · \(Fmt.plural(query.passengers, "voyageur"))").font(.caption).foregroundStyle(.secondary)
-                        Text(euros(pendingOutbound ? result.price : total)).font(.title2.weight(.bold)).monospacedDigit()
+                        Text(pendingOutbound ? "Aller, par adulte" : "Total · \(Fmt.plural(query.passengers, "voyageur"))").font(.inter(.caption)).foregroundStyle(.secondary)
+                        Text(euros(pendingOutbound ? result.price : total)).font(.inter(.title2, .bold)).monospacedDigit()
                     }
                     Spacer()
                     Button {
                         if pendingOutbound { onChoose() } else { showBooking = true }
                     } label: {
-                        Text(pendingOutbound ? "Choisir cet aller" : "Continuer").font(.headline).padding(.horizontal, 8)
+                        HStack(spacing: 8) { Text(pendingOutbound ? "Choisir cet aller" : "Continuer"); Image(systemName: "arrow.right").font(.system(size: 14, weight: .semibold)) }
                     }
-                    .buttonStyle(.borderedProminent).controlSize(.large).buttonBorderShape(.capsule)
+                    .buttonStyle(PillButtonStyle())
                 }
                 .padding()
                 .background(.bar)
@@ -114,9 +114,9 @@ struct FlightDetailView: View {
     private func itinerary(_ r: FlightResult) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("\(r.from) → \(r.to)").font(.title3.weight(.bold))
+                Text("\(r.from) → \(r.to)").font(.inter(.title3, .bold))
                 Spacer()
-                Text("\(Fmt.duration(r.duration)) · \(r.stops == 0 ? "direct" : Fmt.plural(r.stops, "escale"))").font(.subheadline).foregroundStyle(.secondary)
+                Text("\(Fmt.duration(r.duration)) · \(r.stops == 0 ? "direct" : Fmt.plural(r.stops, "escale"))").font(.inter(.subheadline)).foregroundStyle(.secondary)
             }
             .padding(.bottom, 12)
             if r.isSelfTransfer {
@@ -133,7 +133,7 @@ struct FlightDetailView: View {
                 case .layover(let at, let m, let st):
                     Label("\(st ? "Changement de billet" : "Escale") à \(store.city(at)) (\(at)) · \(Fmt.duration(m))\(m >= 420 ? " · nuit sur place" : "")",
                           systemImage: m >= 420 ? "moon.zzz" : "clock")
-                        .font(.footnote)
+                        .font(.inter(.footnote))
                         .foregroundStyle(m >= 420 || st ? Color.orange : Color.secondary)
                         .padding(.vertical, 8).padding(.leading, 22)
                 }
@@ -151,8 +151,8 @@ struct FlightDetailView: View {
                 Rectangle().fill(.quaternary).frame(width: 2).padding(.leading, 4)
                 AirlineLogo(code: leg.airline, size: 26)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("\(store.airlines[leg.airline]?.name ?? leg.airline) · \(Fmt.flight(leg.flightNumber))").font(.subheadline.weight(.medium))
-                    Text("\(leg.aircraft) · \(Fmt.duration(leg.minutes)) · \(Int(leg.km).formatted()) km").font(.caption).foregroundStyle(.secondary)
+                    Text("\(store.airlines[leg.airline]?.name ?? leg.airline) · \(Fmt.flight(leg.flightNumber))").font(.inter(.subheadline, .medium))
+                    Text("\(leg.aircraft) · \(Fmt.duration(leg.minutes)) · \(Int(leg.km).formatted()) km").font(.inter(.caption)).foregroundStyle(.secondary)
                 }
             }
             .frame(minHeight: 44)
@@ -164,17 +164,17 @@ struct FlightDetailView: View {
     private func point(_ time: String, _ code: String, _ date: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Circle().strokeBorder(.primary, lineWidth: 2).frame(width: 10, height: 10)
-            Text(time).font(.headline).monospacedDigit()
-            Text(code).font(.subheadline.weight(.bold))
-            Text(store.airportByCode[code]?.name ?? "").font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+            Text(time).font(.inter(.headline)).monospacedDigit()
+            Text(code).font(.inter(.subheadline, .bold))
+            Text(store.airportByCode[code]?.name ?? "").font(.inter(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
             Spacer()
-            Text(Day.format(date, "dMMM")).font(.caption).foregroundStyle(.secondary)
+            Text(Day.format(date, "dMMM")).font(.inter(.caption)).foregroundStyle(.secondary)
         }
     }
 
     private func warning(_ text: String) -> some View {
         Label(text, systemImage: "exclamationmark.triangle.fill")
-            .font(.footnote)
+            .font(.inter(.footnote))
             .foregroundStyle(.orange)
             .padding(10)
             .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -203,8 +203,8 @@ struct FlightDetailView: View {
         HStack(spacing: 10) {
             Image(systemName: symbol).foregroundStyle(.secondary).frame(width: 22)
             VStack(alignment: .leading, spacing: 0) {
-                Text(value).font(.subheadline.weight(.medium))
-                Text(label).font(.caption).foregroundStyle(.secondary)
+                Text(value).font(.inter(.subheadline, .medium))
+                Text(label).font(.inter(.caption)).foregroundStyle(.secondary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -261,22 +261,22 @@ struct BookingView: View {
                 ForEach(Array(legs.enumerated()), id: \.offset) { i, r in
                     HStack {
                         VStack(alignment: .leading) {
-                            Text(r.from).font(.title2.weight(.bold))
-                            Text("\(Fmt.time(r.dep)) · \(Day.format(r.date, "dMMM"))").font(.caption).foregroundStyle(.secondary)
+                            Text(r.from).font(.inter(.title2, .bold))
+                            Text("\(Fmt.time(r.dep)) · \(Day.format(r.date, "dMMM"))").font(.inter(.caption)).foregroundStyle(.secondary)
                         }
                         Spacer()
                         VStack(spacing: 2) {
                             Image(systemName: "airplane").foregroundStyle(.secondary)
-                            Text("\(i == 0 ? "Aller" : "Retour") · \(Fmt.duration(r.duration))").font(.caption2).foregroundStyle(.secondary)
+                            Text("\(i == 0 ? "Aller" : "Retour") · \(Fmt.duration(r.duration))").font(.inter(.caption2)).foregroundStyle(.secondary)
                         }
                         Spacer()
                         VStack(alignment: .trailing) {
-                            Text(r.to).font(.title2.weight(.bold))
-                            Text(Fmt.time(r.arr) + (r.dayOffset > 0 ? " (+\(r.dayOffset))" : "")).font(.caption).foregroundStyle(.secondary)
+                            Text(r.to).font(.inter(.title2, .bold))
+                            Text(Fmt.time(r.arr) + (r.dayOffset > 0 ? " (+\(r.dayOffset))" : "")).font(.inter(.caption)).foregroundStyle(.secondary)
                         }
                     }
                 }
-                LabeledContent { Text(euros(total)).font(.title3.bold()) } label: { Text("Total estimé · \(Fmt.plural(query.passengers, "voyageur")) · \(fare.name)") }
+                LabeledContent { Text(euros(total)).font(.inter(.title3, .bold)) } label: { Text("Total estimé · \(Fmt.plural(query.passengers, "voyageur")) · \(fare.name)") }
             } header: { Text("Récapitulatif").textCase(nil) }
 
             Section {
@@ -286,10 +286,10 @@ struct BookingView: View {
                     } label: {
                         HStack(alignment: .top, spacing: 12) {
                             Image(systemName: checks.contains(i) ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(checks.contains(i) ? Color.green : Color.secondary).font(.title3)
+                                .foregroundStyle(checks.contains(i) ? Color.green : Color.secondary).font(.inter(.title3))
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(checklist[i].0).font(.body.weight(.medium))
-                                Text(checklist[i].1).font(.caption).foregroundStyle(.secondary)
+                                Text(checklist[i].0).font(.inter(.body, .medium))
+                                Text(checklist[i].1).font(.inter(.caption)).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -310,8 +310,8 @@ struct BookingView: View {
                         HStack(spacing: 12) {
                             AirlineLogo(code: t.airline, size: 32)
                             VStack(alignment: .leading) {
-                                Text("Réserver sur \(store.airlines[t.airline]?.siteHost ?? t.airline)").font(.body.weight(.semibold))
-                                Text(t.label).font(.caption).foregroundStyle(.secondary)
+                                Text("Réserver sur \(store.airlines[t.airline]?.siteHost ?? t.airline)").font(.inter(.body, .semibold))
+                                Text(t.label).font(.inter(.caption)).foregroundStyle(.secondary)
                             }
                             Spacer()
                             Image(systemName: "arrow.up.right.square")

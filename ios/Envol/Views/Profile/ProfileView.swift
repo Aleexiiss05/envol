@@ -12,14 +12,14 @@ struct ProfileView: View {
                 Section {
                     HStack(spacing: 16) {
                         ZStack {
-                            Circle().fill(LinearGradient(colors: [Color.accentColor, Color.accentColor.opacity(0.6)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            Text(initials).font(.title2.weight(.bold)).foregroundStyle(.white)
+                            Circle().fill(Theme.ink)
+                            Text(initials).font(.inter(.title2, .bold)).foregroundStyle(.white)
                         }
                         .frame(width: 64, height: 64)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(user.profile.firstName.isEmpty ? "Voyageur" : user.profile.firstName).font(.title2.weight(.bold))
+                            Text(user.profile.firstName.isEmpty ? "Voyageur" : user.profile.firstName).font(.inter(.title2, .bold))
                             Text("Au départ de \(store.city(user.profile.homeCode)) · membre depuis \(Day.format(user.profile.memberSince, "MMMMyyyy"))")
-                                .font(.subheadline).foregroundStyle(.secondary)
+                                .font(.inter(.subheadline)).foregroundStyle(.secondary)
                         }
                     }
                     .padding(.vertical, 6)
@@ -94,8 +94,8 @@ struct ProfileView: View {
 
     private func stat(_ value: String, _ label: String) -> some View {
         VStack(spacing: 2) {
-            Text(value).font(.title3.weight(.bold)).monospacedDigit().contentTransition(.numericText())
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(value).font(.inter(.title3, .bold)).monospacedDigit().contentTransition(.numericText())
+            Text(label).font(.inter(.caption)).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
