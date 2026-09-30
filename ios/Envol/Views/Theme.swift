@@ -10,6 +10,7 @@ enum Theme {
     static let faint = Color(hex: "#86868B")
     static let gray = Color(hex: "#F5F5F7")
     static let gray2 = Color(hex: "#E8E8ED")
+    static let field = Color(hex: "#F0F0F3")   // champs sur fond blanc
     static let line = Color.black.opacity(0.08)
     static let accent = Color(hex: "#0071E3")
     static let accentBg = Color(hex: "#0071E3").opacity(0.08)
@@ -164,6 +165,7 @@ struct SegmentedPicker<T: Hashable>: View {
 struct ChipButton: View {
     let label: String
     let on: Bool
+    var offFill: Color = Theme.gray2
     let action: () -> Void
     var body: some View {
         Button(action: action) {
@@ -171,7 +173,7 @@ struct ChipButton: View {
                 .font(.inter(14, on ? .semibold : .medium))
                 .foregroundStyle(on ? Color.white : Theme.ink2)
                 .padding(.horizontal, 14).frame(height: 34)
-                .background(on ? Theme.ink : Theme.gray, in: Capsule())
+                .background(on ? Theme.ink : offFill, in: Capsule())
         }
         .buttonStyle(PressableStyle())
         .accessibilityAddTraits(on ? .isSelected : [])

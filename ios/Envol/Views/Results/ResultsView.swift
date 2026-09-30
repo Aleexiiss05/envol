@@ -262,7 +262,7 @@ struct ResultsView: View {
                 .font(.inter(14, .medium)).foregroundStyle(Theme.muted)
                 .contentTransition(.numericText())
             Spacer()
-            ChipButton(label: "Bagage inclus", on: user.bagIncluded) { user.bagIncluded.toggle() }
+            ChipButton(label: "Bagage inclus", on: user.bagIncluded, offFill: .white) { user.bagIncluded.toggle() }
             Button { showFilters = true } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "slider.horizontal.3").font(.system(size: 13, weight: .semibold))

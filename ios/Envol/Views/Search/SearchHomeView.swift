@@ -107,7 +107,7 @@ struct SearchHomeView: View {
                         .rotationEffect(.degrees(swapTurns))
                         .frame(width: 36, height: 36)
                         .background(.white, in: Circle())
-                        .overlay(Circle().strokeBorder(Theme.gray, lineWidth: 3))
+                        .overlay(Circle().strokeBorder(Theme.field, lineWidth: 3))
                 }
                 .buttonStyle(PressableStyle())
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -179,7 +179,7 @@ struct SearchHomeView: View {
             }
             .padding(.horizontal, 14)
             .frame(height: 60)
-            .background(Theme.gray, in: UnevenRoundedRectangle(
+            .background(Theme.field, in: UnevenRoundedRectangle(
                 topLeadingRadius: top ? Theme.radiusM : 6, bottomLeadingRadius: top ? 6 : Theme.radiusM,
                 bottomTrailingRadius: top ? 6 : Theme.radiusM, topTrailingRadius: top ? Theme.radiusM : 6, style: .continuous))
             .contentShape(Rectangle())
@@ -200,7 +200,7 @@ struct SearchHomeView: View {
         .padding(.horizontal, 14)
         .frame(height: 54)
         .frame(maxWidth: .infinity)
-        .background(Theme.gray, in: RoundedRectangle(cornerRadius: Theme.radiusM, style: .continuous))
+        .background(Theme.field, in: RoundedRectangle(cornerRadius: Theme.radiusM, style: .continuous))
     }
 
     private func submit() {
@@ -241,7 +241,7 @@ struct SearchHomeView: View {
                                 }
                             }
                             .padding(.horizontal, 14).frame(height: 50)
-                            .background(Theme.gray, in: Capsule())
+                            .background(Theme.field, in: Capsule())
                         }
                         .buttonStyle(PressableStyle())
                     }
