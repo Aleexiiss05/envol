@@ -110,9 +110,11 @@ struct Pill: View {
 struct PressableStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .brightness(configuration.isPressed ? -0.03 : 0)
-            .animation(.spring(duration: 0.25, bounce: 0.3), value: configuration.isPressed)
+            // enfoncement immédiat, retour avec un petit rebond
+            .animation(configuration.isPressed ? .spring(response: 0.15, dampingFraction: 0.9) : .spring(response: 0.3, dampingFraction: 0.6),
+                       value: configuration.isPressed)
     }
 }
 

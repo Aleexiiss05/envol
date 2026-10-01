@@ -51,7 +51,7 @@ struct FavoritesView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(store.city(f.to)).font(.inter(16, .semibold)).foregroundStyle(Theme.ink).lineLimit(1).minimumScaleFactor(0.8)
-                Text("Depuis \(store.city(f.from)) · \(Day.short(f.date))\(r.map { " · \(Fmt.time($0.dep))" } ?? "")").font(.inter(13)).foregroundStyle(Theme.muted).lineLimit(1).minimumScaleFactor(0.85)
+                Text("De \(store.city(f.from)) · \(Day.format(f.date, "dMMM"))\(r.map { " · \(Fmt.time($0.dep))" } ?? "")").font(.inter(13)).foregroundStyle(Theme.muted).lineLimit(1).minimumScaleFactor(0.85)
             }
             Spacer(minLength: 4)
             VStack(alignment: .trailing, spacing: 3) {

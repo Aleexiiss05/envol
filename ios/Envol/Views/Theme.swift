@@ -100,9 +100,11 @@ struct PillButtonStyle: ButtonStyle {
             .frame(height: 46)
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .background(prominent ? (enabled ? Theme.accent : Theme.faint.opacity(0.5)) : Theme.gray, in: Capsule())
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .brightness(configuration.isPressed ? (prominent ? 0.05 : -0.03) : 0)
-            .animation(.spring(duration: 0.25, bounce: 0.3), value: configuration.isPressed)
+            .animation(configuration.isPressed ? .spring(response: 0.15, dampingFraction: 0.9) : .spring(response: 0.3, dampingFraction: 0.6),
+                       value: configuration.isPressed)
+            .sensoryFeedback(.impact(weight: .light, intensity: 0.5), trigger: configuration.isPressed) { _, new in new }
     }
 }
 
@@ -127,38 +129,92 @@ struct CircleIconButton: View {
 
 // MARK: - Contrôle segmenté du site (piste grise, pastille blanche qui glisse)
 
+/// Le doigt pilote la pastille : elle se tasse dès le contact, suit le doigt d'un segment à l'autre
+/// et s'installe avec un léger rebond au relâchement.
 struct SegmentedPicker<T: Hashable>: View {
     let options: [(T, String)]
     @Binding var selection: T
-    @Namespace private var ns
+    @State private var width: CGFloat = 0
+    @State private var hover: Int?          // segment sous le doigt pendant l'appui
+    @State private var pressing = false
+    @State private var cancelled = false    // le geste est devenu un défilement vertical
+
+    private static var follow: Animation { .spring(response: 0.24, dampingFraction: 0.82) }
+    private static var settle: Animation { .spring(response: 0.32, dampingFraction: 0.68) }
+
+    private var selectedIndex: Int { options.firstIndex { $0.0 == selection } ?? 0 }
+
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(options.indices, id: \.self) { i in
-                let value = options[i].0
-                let label = options[i].1
-                let on = value == selection
-                Button { withAnimation(.spring(duration: 0.35, bounce: 0.2)) { selection = value } } label: {
-                    Text(label)
+        let count = max(options.count, 1)
+        let segment = max(0, (width - 6) / CGFloat(count))
+        let shown = hover ?? selectedIndex
+        ZStack(alignment: .leading) {
+            // Pastille blanche : se tasse et s'élargit un peu sous le doigt
+            Capsule()
+                .fill(.white)
+                .shadow(color: .black.opacity(pressing ? 0.08 : 0.13), radius: pressing ? 2 : 4, y: pressing ? 1 : 2)
+                .frame(width: segment, height: 32)
+                .scaleEffect(x: pressing ? 1.03 : 1, y: pressing ? 0.92 : 1)
+                .offset(x: segment * CGFloat(shown))
+                .opacity(width > 0 ? 1 : 0)
+
+            HStack(spacing: 0) {
+                ForEach(options.indices, id: \.self) { i in
+                    let on = i == shown
+                    Text(options[i].1)
                         .font(.inter(14, on ? .semibold : .medium))
                         .foregroundStyle(on ? Theme.ink : Theme.muted)
                         .lineLimit(1).minimumScaleFactor(0.75)
                         .frame(maxWidth: .infinity)
                         .frame(height: 32)
-                        .background {
-                            if on {
-                                Capsule().fill(.white)
-                                    .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
-                                    .matchedGeometryEffect(id: "thumb", in: ns)
-                            }
-                        }
+                        .scaleEffect(pressing && on ? 0.96 : 1)
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
         .padding(3)
-        .background(Color(hex: "#767680").opacity(0.12), in: Capsule())
+        .background(Color(hex: "#767680").opacity(pressing ? 0.16 : 0.12), in: Capsule())
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .contentShape(Capsule())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { g in
+                    if cancelled { return }
+                    // un glissement surtout vertical : on laisse défiler la page
+                    if abs(g.translation.height) > 14 && abs(g.translation.height) > abs(g.translation.width) * 1.4 {
+                        cancelled = true
+                        withAnimation(Self.settle) { pressing = false; hover = nil }
+                        return
+                    }
+                    let i = index(at: g.location.x, segment: segment)
+                    if !pressing || hover != i {
+                        withAnimation(Self.follow) { pressing = true; hover = i }
+                    }
+                }
+                .onEnded { g in
+                    defer { cancelled = false }
+                    guard !cancelled else { return }
+                    let i = index(at: g.location.x, segment: segment)
+                    withAnimation(Self.settle) {
+                        pressing = false
+                        hover = nil
+                        selection = options[i].0
+                    }
+                }
+        )
+        .sensoryFeedback(.impact(weight: .light, intensity: 0.55), trigger: pressing) { _, new in new }
+        .sensoryFeedback(.selection, trigger: hover) { old, new in old != nil && new != nil && old != new }
         .sensoryFeedback(.selection, trigger: selection)
+        .accessibilityRepresentation {
+            Picker("", selection: $selection) {
+                ForEach(options.indices, id: \.self) { i in Text(options[i].1).tag(options[i].0) }
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
+    private func index(at x: CGFloat, segment: CGFloat) -> Int {
+        guard segment > 0 else { return selectedIndex }
+        return min(max(Int((x - 3) / segment), 0), options.count - 1)
     }
 }
 

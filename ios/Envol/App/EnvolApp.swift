@@ -104,17 +104,25 @@ struct EnvolTabBar: View {
             ForEach(AppTab.allCases) { t in
                 let on = t == tab
                 Button {
-                    withAnimation(.spring(duration: 0.4, bounce: 0.25)) { tab = t }
+                    guard t != tab else { return }
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.74)) { tab = t }
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: on && t != .flights ? t.symbol + ".fill" : t.symbol)
                             .font(.system(size: 17, weight: on ? .semibold : .regular))
+                            .symbolEffect(.bounce.down, options: .speed(1.4), value: on)
                             .overlay(alignment: .topTrailing) {
                                 if let n = badges[t], n > 0, !on {
                                     Circle().fill(Theme.accent).frame(width: 8, height: 8).overlay(Circle().stroke(.white, lineWidth: 1.5)).offset(x: 4, y: -2)
+                                        .transition(.scale.combined(with: .opacity))
                                 }
                             }
-                        if on { Text(t.label).font(.inter(14, .semibold)).lineLimit(1).fixedSize() }
+                        if on {
+                            Text(t.label).font(.inter(14, .semibold)).lineLimit(1).fixedSize()
+                                .transition(.asymmetric(
+                                    insertion: .opacity.combined(with: .scale(scale: 0.7, anchor: .leading)).combined(with: .offset(x: -6)),
+                                    removal: .opacity.animation(.easeOut(duration: 0.1))))
+                        }
                     }
                     .foregroundStyle(on ? Color.white : Theme.ink2)
                     .padding(.horizontal, on ? 16 : 12)
@@ -125,7 +133,7 @@ struct EnvolTabBar: View {
                     }
                     .contentShape(Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(TabPressStyle())
                 .accessibilityLabel(t.label + ((badges[t] ?? 0) > 0 ? ", \(badges[t]!)" : ""))
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
@@ -139,6 +147,17 @@ struct EnvolTabBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 6)
-        .sensoryFeedback(.selection, trigger: tab)
+        .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: tab)
+    }
+}
+
+/// Appui sur un onglet : l'élément se tasse tout de suite sous le doigt, puis rebondit au relâchement
+struct TabPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.86 : 1)
+            .brightness(configuration.isPressed ? -0.04 : 0)
+            .animation(configuration.isPressed ? .spring(response: 0.16, dampingFraction: 0.9) : .spring(response: 0.3, dampingFraction: 0.55),
+                       value: configuration.isPressed)
     }
 }
