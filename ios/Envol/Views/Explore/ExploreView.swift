@@ -30,8 +30,10 @@ struct ExploreView: View {
             Map(position: $position, selection: Binding(get: { selected?.code }, set: { code in selected = visible.first { $0.code == code } })) {
                 if let o = store.airportByCode[store.expand(origin)[0]] {
                     Annotation(store.city(origin), coordinate: o.coordinate) {
-                        Image(systemName: "airplane.departure").font(.inter(.caption, .bold)).foregroundStyle(.white)
-                            .padding(7).background(.tint, in: Circle())
+                        Image(systemName: "airplane").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                            .frame(width: 30, height: 30).background(Theme.ink, in: Circle())
+                            .overlay(Circle().strokeBorder(.white, lineWidth: 2.5))
+                            .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
                     }
                     ForEach(visible) { d in
                         if let a = store.airportByCode[d.airport] {
@@ -48,15 +50,12 @@ struct ExploreView: View {
                 }
             }
             .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
-            .safeAreaInset(edge: .top) { controls }
-            .safeAreaInset(edge: .bottom) { if let d = selected { selectedCard(d) } else { summary } }
-            .navigationTitle("Explorer")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { pickingOrigin = true } label: { Label("Depuis \(store.city(origin))", systemImage: "airplane.departure").labelStyle(.titleAndIcon) }
-                }
+            .safeAreaInset(edge: .top, spacing: 0) { controls }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Group { if let d = selected { selectedCard(d) } else { summary } }
+                    .animation(.spring(duration: 0.35), value: selected?.code)
             }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $pickingOrigin) { PlacePicker(title: "Ville de départ", current: origin) { origin = $0 } }
             .navigationDestination(for: SearchQuery.self) { ResultsView(query: $0) }
             .task(id: "\(origin)-\(month)-\(directOnly)") { await load() }
@@ -64,8 +63,16 @@ struct ExploreView: View {
         }
     }
 
-    /// Seules les destinations les moins chères portent une étiquette ; les autres sont des points (touchez pour voir le prix)
-    private var labelledCodes: Set<String> { Set(visible.sorted { $0.price < $1.price }.prefix(14).map { $0.code }) }
+    /// Étiquettes de prix pour les moins chères, sans chevauchement : on saute une destination trop proche d'une déjà étiquetée
+    private var labelledCodes: Set<String> {
+        var picked: [FlightStore.Destination] = []
+        for d in visible.sorted(by: { $0.price < $1.price }) {
+            if picked.contains(where: { store.km($0.airport, d.airport) < 420 }) { continue }
+            picked.append(d)
+            if picked.count == 14 { break }
+        }
+        return Set(picked.map(\.code))
+    }
     private func priceDot(_ d: FlightStore.Destination) -> some View {
         Circle().fill(d.price <= cheapThreshold ? Theme.good : Theme.faint)
             .frame(width: 10, height: 10)
@@ -80,8 +87,8 @@ struct ExploreView: View {
         let isSel = selected?.code == d.code
         let good = d.price <= cheapThreshold
         return Text(euros(d.price))
-            .font(.inter(.caption, .semibold)).monospacedDigit()
-            .padding(.horizontal, 7).padding(.vertical, 4)
+            .font(.inter(12, .semibold)).monospacedDigit()
+            .padding(.horizontal, 8).padding(.vertical, 5)
             .foregroundStyle(isSel ? Color.white : good ? Theme.good : Theme.ink)
             .background(isSel ? Theme.accent : Color.white, in: Capsule())
             .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
@@ -90,48 +97,83 @@ struct ExploreView: View {
             .accessibilityLabel("\(store.city(d.code)), dès \(euros(d.price))")
     }
 
+    /// Panneau flottant en verre (même matière que les menus du site)
     private var controls: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Explorer").display(26).foregroundStyle(Theme.ink)
+                    Text("\(Fmt.plural(visible.count, "destination")) · \(Day.format(month, "MMMM"))").font(.inter(13)).foregroundStyle(Theme.muted)
+                        .contentTransition(.numericText())
+                }
+                Spacer()
+                Button { pickingOrigin = true } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "airplane.departure").font(.system(size: 12, weight: .semibold))
+                        Text(store.city(origin)).lineLimit(1)
+                        Image(systemName: "chevron.down").font(.system(size: 10, weight: .bold))
+                    }
+                    .font(.inter(14, .semibold)).foregroundStyle(Theme.ink)
+                    .padding(.horizontal, 12).frame(height: 36)
+                    .background(.white, in: Capsule())
+                }
+                .buttonStyle(PressableStyle())
+                .accessibilityLabel("Départ : \(store.city(origin)). Changer")
+            }
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     ForEach(months, id: \.self) { m in
                         chip(Day.format(m, "MMMM").capitalized, on: m == month) { month = m }
                     }
-                    Divider().frame(height: 20)
+                    Rectangle().fill(Theme.gray2).frame(width: 1, height: 20).padding(.horizontal, 4)
                     ForEach(vibes, id: \.0) { v in chip(v.1, on: vibe == v.0) { withAnimation { vibe = v.0 } } }
-                    Divider().frame(height: 20)
+                    Rectangle().fill(Theme.gray2).frame(width: 1, height: 20).padding(.horizontal, 4)
                     chip("Direct", on: directOnly) { directOnly.toggle() }
                 }
-                .padding(.horizontal)
             }
-            HStack {
-                Text("Budget").font(.inter(.subheadline, .medium))
-                Slider(value: $budget, in: 50...2000, step: 10)
-                Text(budget >= 2000 ? "Illimité" : "≤ \(euros(Int(budget)))").font(.inter(.subheadline)).monospacedDigit().frame(width: 84, alignment: .trailing)
+            .scrollClipDisabled()
+            HStack(spacing: 10) {
+                Text("Budget").font(.inter(14, .medium)).foregroundStyle(Theme.ink2)
+                Slider(value: $budget, in: 50...2000, step: 10).tint(Theme.accent)
+                    .accessibilityValue(budget >= 2000 ? "Illimité" : euros(Int(budget)))
+                Text(budget >= 2000 ? "Tous" : "≤ \(euros(Int(budget)))").font(.inter(14, .semibold)).foregroundStyle(Theme.ink).monospacedDigit()
+                    .frame(width: 70, alignment: .trailing)
             }
-            .padding(.horizontal)
         }
-        .padding(.vertical, 10)
-        .background(.regularMaterial)
+        .padding(14)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous).fill(.ultraThinMaterial)
+                .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(.white.opacity(0.62)))
+                .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.white.opacity(0.9), lineWidth: 1))
+                .shadow(color: .black.opacity(0.12), radius: 20, y: 8)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 4)
     }
 
     private func chip(_ label: String, on: Bool, action: @escaping () -> Void) -> some View {
-        ChipButton(label: label, on: on, action: action)
+        ChipButton(label: label, on: on, offFill: .white, action: action)
     }
 
     private var summary: some View {
-        Text("\(Fmt.plural(visible.count, "destination")) · touchez un prix")
-            .font(.inter(.subheadline)).foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity).padding(12).background(.regularMaterial)
+        HStack(spacing: 6) {
+            Circle().fill(Theme.good).frame(width: 7, height: 7)
+            Text("Les moins chères du mois · touchez un prix").font(.inter(13, .medium)).foregroundStyle(Theme.ink2)
+        }
+        .padding(.horizontal, 14).frame(height: 34)
+        .background(.white.opacity(0.92), in: Capsule())
+        .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
+        .padding(.bottom, 10)
+        .frame(maxWidth: .infinity)
     }
 
     private func selectedCard(_ d: FlightStore.Destination) -> some View {
         HStack(spacing: 12) {
             PlacePhoto(code: d.code, width: 300).frame(width: 72, height: 72).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(store.city(d.code)).font(.inter(.headline))
-                Text("\(store.country(d.code)) · \(Fmt.duration(d.duration))\(d.direct ? " · direct" : "")").font(.inter(.caption)).foregroundStyle(.secondary)
-                Text("dès \(euros(d.price)) le \(Day.format(d.date, "dMMM"))").font(.inter(.subheadline, .semibold))
+                Text(store.city(d.code)).font(.inter(17, .semibold)).foregroundStyle(Theme.ink)
+                Text("\(store.country(d.code)) · \(Fmt.duration(d.duration))\(d.direct ? " · direct" : "")").font(.inter(12)).foregroundStyle(Theme.muted)
+                Text("dès \(euros(d.price)) le \(Day.format(d.date, "dMMM"))").font(.inter(14, .semibold)).foregroundStyle(Theme.ink)
             }
             Spacer()
             Button("Voir") {
@@ -142,9 +184,9 @@ struct ExploreView: View {
             .buttonStyle(CompactPillStyle())
         }
         .padding(12)
-        .background(.white, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 20, y: 8)
-        .padding(.horizontal).padding(.bottom, 8)
+        .background(.white, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(0.14), radius: 20, y: 8)
+        .padding(.horizontal, 12).padding(.bottom, 10)
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 

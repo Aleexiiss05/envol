@@ -144,21 +144,22 @@ struct ResultsView: View {
             .padding(.bottom, 24)
         }
         .background(Theme.gray)
-        .navigationTitle(step == 2 ? "Vol retour" : query.roundTrip ? "Vol aller" : "Votre vol")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+        .safeAreaInset(edge: .top, spacing: 0) {
+            TopBar(title: step == 2 ? "Vol retour" : query.roundTrip ? "Vol aller" : "Votre vol") {
                 Button { user.toggleAlert(query) } label: {
                     Image(systemName: user.hasAlert(query) ? "bell.fill" : "bell")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(user.hasAlert(query) ? Theme.accent : Theme.ink)
-                        .frame(width: 34, height: 34)
-                        .background(user.hasAlert(query) ? Theme.accentBg : Theme.gray, in: Circle())
+                        .frame(width: 38, height: 38)
+                        .background(user.hasAlert(query) ? Theme.accentBg : Color.white, in: Circle())
                         .symbolEffect(.bounce, value: user.hasAlert(query))
                 }
+                .buttonStyle(PressableStyle())
                 .accessibilityLabel(user.hasAlert(query) ? "Ne plus surveiller le prix" : "Surveiller le prix")
             }
+            .background(Theme.gray.opacity(0.92).background(.ultraThinMaterial))
         }
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showFilters) {
             FiltersSheet(filters: $filters, results: results, matching: filtered.count, bagIncluded: Binding(get: { user.bagIncluded }, set: { user.bagIncluded = $0 }))
         }

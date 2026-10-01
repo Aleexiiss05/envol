@@ -36,7 +36,7 @@ private struct PlaneOnArc: View, Animatable {
         Image(systemName: "airplane")
             .font(.inter(planeSize, .semibold))
             .foregroundStyle(.tint)
-            .shadow(color: Color.accentColor.opacity(0.35), radius: 6, y: 4)
+            .shadow(color: Theme.accent.opacity(0.35), radius: 6, y: 4)
             .rotationEffect(.radians(FlightArc.angle(t, in: size)))
             .position(p)
     }
@@ -59,7 +59,7 @@ struct FlightPathProgress: View {
                     .stroke(style: StrokeStyle(lineWidth: 1.4, lineCap: .round, dash: [2, 6]))
                     .foregroundStyle(.tertiary)
                 FlightArc(to: shown)
-                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
+                    .stroke(Theme.accent, style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
                 ForEach(steps.indices, id: \.self) { i in
                     let p = FlightArc.point(t(i), in: size)
                     let state = i < current ? 0 : i == current ? 1 : 2
@@ -75,9 +75,9 @@ struct FlightPathProgress: View {
                         VStack(spacing: 1) {
                             Text(steps[i])
                                 .font(i == current ? .inter(.caption, .bold) : .inter(.caption2))
-                                .foregroundStyle(i == current ? Color.accentColor : i < current ? Color.primary : Color.secondary)
+                                .foregroundStyle(i == current ? Theme.accent : i < current ? Theme.ink : Theme.faint)
                             if i < details.count, !details[i].isEmpty, i <= current {
-                                Text(details[i]).font(.inter(.caption2)).foregroundStyle(i == current ? Color.accentColor : Color.secondary)
+                                Text(details[i]).font(.inter(.caption2)).foregroundStyle(i == current ? Theme.accent : Theme.faint)
                             }
                         }
                         .fixedSize()

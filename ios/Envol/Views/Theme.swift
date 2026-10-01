@@ -110,6 +110,7 @@ struct PillButtonStyle: ButtonStyle {
 struct CircleIconButton: View {
     let symbol: String
     let label: String
+    var fill: Color = Theme.gray
     let action: () -> Void
     var body: some View {
         Button(action: action) {
@@ -117,7 +118,7 @@ struct CircleIconButton: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Theme.ink)
                 .frame(width: 38, height: 38)
-                .background(Theme.gray, in: Circle())
+                .background(fill, in: Circle())
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel(label)
@@ -140,7 +141,7 @@ struct SegmentedPicker<T: Hashable>: View {
                     Text(label)
                         .font(.inter(14, on ? .semibold : .medium))
                         .foregroundStyle(on ? Theme.ink : Theme.muted)
-                        .lineLimit(1)
+                        .lineLimit(1).minimumScaleFactor(0.75)
                         .frame(maxWidth: .infinity)
                         .frame(height: 32)
                         .background {
@@ -216,5 +217,277 @@ struct ScreenHeader: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+// MARK: - Écrans et feuilles sans barre système
+
+/// En-tête de feuille : titre à gauche, boutons ronds à droite (remplace « Fermer » / « OK »)
+struct SheetHeader<Trailing: View>: View {
+    let title: String
+    var subtitle: String? = nil
+    var buttonFill: Color = Theme.gray
+    var trailing: () -> Trailing
+    @Environment(\.dismiss) private var dismiss
+    init(title: String, subtitle: String? = nil, buttonFill: Color = Theme.gray, @ViewBuilder trailing: @escaping () -> Trailing) {
+        self.title = title; self.subtitle = subtitle; self.buttonFill = buttonFill; self.trailing = trailing
+    }
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).display(24).foregroundStyle(Theme.ink).lineLimit(1).minimumScaleFactor(0.8)
+                if let subtitle { Text(subtitle).font(.inter(14)).foregroundStyle(Theme.muted).lineLimit(1) }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            trailing()
+            CircleIconButton(symbol: "xmark", label: "Fermer", fill: buttonFill) { dismiss() }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 22)
+        .padding(.bottom, 12)
+    }
+}
+extension SheetHeader where Trailing == EmptyView {
+    init(title: String, subtitle: String? = nil, buttonFill: Color = Theme.gray) { self.init(title: title, subtitle: subtitle, buttonFill: buttonFill) { EmptyView() } }
+}
+
+/// Barre du haut d'un écran poussé : retour rond, titre centré, action ronde
+struct TopBar<Trailing: View>: View {
+    let title: String
+    var trailing: () -> Trailing
+    @Environment(\.dismiss) private var dismiss
+    init(title: String, @ViewBuilder trailing: @escaping () -> Trailing) {
+        self.title = title; self.trailing = trailing
+    }
+    var body: some View {
+        ZStack {
+            Text(title).font(.inter(16, .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+                .padding(.horizontal, 60)
+                .accessibilityAddTraits(.isHeader)
+            HStack {
+                CircleIconButton(symbol: "chevron.left", label: "Retour", fill: .white) { dismiss() }
+                Spacer()
+                trailing()
+            }
+        }
+        .frame(height: 44)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+}
+extension TopBar where Trailing == EmptyView {
+    init(title: String) { self.init(title: title) { EmptyView() } }
+}
+
+/// En-tête d'onglet : grand titre Inter, comme les titres de section du site
+struct PageHeader<Trailing: View>: View {
+    let title: String
+    var subtitle: String? = nil
+    @ViewBuilder var trailing: () -> Trailing
+    var body: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).display(34).foregroundStyle(Theme.ink)
+                if let subtitle { Text(subtitle).font(.inter(15)).foregroundStyle(Theme.muted) }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+            Spacer()
+            trailing()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+}
+extension PageHeader where Trailing == EmptyView {
+    init(title: String, subtitle: String? = nil) { self.init(title: title, subtitle: subtitle) { EmptyView() } }
+}
+
+/// Section : petit libellé puis carte (blanche sur fond gris, grise sur fond blanc)
+struct EnvolSection<Content: View>: View {
+    var title: String? = nil
+    var footer: String? = nil
+    var fill: Color = .white
+    @ViewBuilder var content: () -> Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let title {
+                Text(title).font(.inter(13, .semibold)).foregroundStyle(Theme.muted)
+                    .padding(.horizontal, 6)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            VStack(spacing: 0) { content() }
+                .background(fill, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            if let footer {
+                Text(footer).font(.inter(12)).foregroundStyle(Theme.faint).padding(.horizontal, 6)
+            }
+        }
+    }
+}
+
+/// Séparateur fin dans une carte
+struct RowDivider: View {
+    var inset: CGFloat = 14
+    var body: some View { Rectangle().fill(Theme.gray2).frame(height: 1).padding(.leading, inset) }
+}
+
+/// Ligne de carte : pastille d'icône, titre, sous-titre, contenu à droite
+struct EnvolRow<Trailing: View>: View {
+    var symbol: String? = nil
+    let title: String
+    var subtitle: String? = nil
+    @ViewBuilder var trailing: () -> Trailing
+    var body: some View {
+        HStack(spacing: 12) {
+            if let symbol {
+                Image(systemName: symbol).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.accent)
+                    .frame(width: 32, height: 32).background(Theme.accentBg, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.inter(15, .medium)).foregroundStyle(Theme.ink)
+                if let subtitle { Text(subtitle).font(.inter(13)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) }
+            }
+            Spacer(minLength: 8)
+            trailing()
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 56)
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+}
+extension EnvolRow where Trailing == EmptyView {
+    init(symbol: String? = nil, title: String, subtitle: String? = nil) { self.init(symbol: symbol, title: title, subtitle: subtitle) { EmptyView() } }
+}
+
+/// Interrupteur Envol : piste bleue, pastille blanche cochée (pas l'interrupteur vert des Réglages)
+struct EnvolToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { withAnimation(.spring(duration: 0.3, bounce: 0.25)) { configuration.isOn.toggle() } } label: {
+            HStack(spacing: 12) {
+                configuration.label
+                Spacer(minLength: 8)
+                Capsule()
+                    .fill(configuration.isOn ? Theme.accent : Theme.gray2)
+                    .frame(width: 46, height: 28)
+                    .overlay(alignment: configuration.isOn ? .trailing : .leading) {
+                        Circle().fill(.white).padding(3)
+                            .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+                            .overlay {
+                                if configuration.isOn {
+                                    Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.accent)
+                                }
+                            }
+                    }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: configuration.isOn)
+        .accessibilityRepresentation { Toggle(isOn: configuration.$isOn) { configuration.label } }
+    }
+}
+extension ToggleStyle where Self == EnvolToggleStyle { static var envol: EnvolToggleStyle { .init() } }
+
+/// Ligne avec interrupteur Envol dans une carte
+struct ToggleRow: View {
+    let title: String
+    var subtitle: String? = nil
+    @Binding var isOn: Bool
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.inter(15, .medium)).foregroundStyle(Theme.ink)
+                if let subtitle { Text(subtitle).font(.inter(13)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) }
+            }
+        }
+        .toggleStyle(.envol)
+        .padding(.horizontal, 14)
+        .frame(minHeight: 56)
+        .padding(.vertical, 4)
+    }
+}
+
+/// Compteur − / + rond
+struct EnvolStepper: View {
+    let title: String
+    var subtitle: String? = nil
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.inter(15, .medium)).foregroundStyle(Theme.ink)
+                if let subtitle { Text(subtitle).font(.inter(13)).foregroundStyle(Theme.muted) }
+            }
+            Spacer()
+            stepButton("minus", enabled: value > range.lowerBound) { value -= 1 }
+            Text("\(value)").font(.inter(17, .semibold)).monospacedDigit().frame(minWidth: 24)
+                .contentTransition(.numericText(value: Double(value)))
+            stepButton("plus", enabled: value < range.upperBound) { value += 1 }
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 64)
+        .animation(.snappy, value: value)
+        .sensoryFeedback(.selection, trigger: value)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue("\(value)")
+        .accessibilityAdjustableAction { dir in
+            if dir == .increment, value < range.upperBound { value += 1 }
+            if dir == .decrement, value > range.lowerBound { value -= 1 }
+        }
+    }
+    private func stepButton(_ symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 13, weight: .bold))
+                .foregroundStyle(enabled ? Theme.ink : Theme.faint.opacity(0.5))
+                .frame(width: 34, height: 34)
+                .background(Theme.gray, in: Circle())
+        }
+        .buttonStyle(PressableStyle())
+        .disabled(!enabled)
+    }
+}
+
+/// État vide : pastille d'icône, titre, texte
+struct EmptyState: View {
+    let symbol: String
+    let title: String
+    let text: String
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 24, weight: .medium)).foregroundStyle(Theme.accent)
+                .frame(width: 64, height: 64).background(Theme.accentBg, in: Circle())
+            Text(title).font(.inter(19, .semibold)).foregroundStyle(Theme.ink)
+            Text(text).font(.inter(15)).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 36)
+        .padding(.vertical, 48)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension View {
+    /// Feuilles Envol : grand arrondi, fond au choix, poignée visible
+    func envolSheet(_ background: Color = .white) -> some View {
+        self.presentationCornerRadius(28)
+            .presentationDragIndicator(.visible)
+            .presentationBackground(background)
+    }
+}
+
+/// Garde le geste « balayer pour revenir » quand la barre de navigation système est masquée
+extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        interactivePopGestureRecognizer?.delegate = self
+    }
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        viewControllers.count > 1
     }
 }

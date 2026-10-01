@@ -79,8 +79,8 @@ struct RouteTrack: View {
             let start = result.segments.first?.startUTC ?? 0
             ZStack(alignment: .leading) {
                 Capsule().fill(.quaternary).frame(height: 1.5)
-                Circle().fill(.secondary).frame(width: 6, height: 6)
-                Circle().fill(.secondary).frame(width: 6, height: 6).offset(x: geo.size.width - 6)
+                Circle().fill(Theme.faint).frame(width: 6, height: 6)
+                Circle().fill(Theme.faint).frame(width: 6, height: 6).offset(x: geo.size.width - 6)
                 ForEach(Array(result.segments.enumerated()), id: \.offset) { _, s in
                     if case .layover(_, let m, let st) = s.kind {
                         let mid = Double(s.startUTC - start) + Double(m) / 2

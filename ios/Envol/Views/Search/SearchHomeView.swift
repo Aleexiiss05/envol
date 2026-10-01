@@ -42,7 +42,7 @@ struct SearchHomeView: View {
                 }
             }
             .sheet(isPresented: $showDates) { DatesSheet(query: $query) }
-            .sheet(isPresented: $showPassengers) { PassengersSheet(query: $query).presentationDetents([.medium]) }
+            .sheet(isPresented: $showPassengers) { PassengersSheet(query: $query).presentationDetents([.fraction(0.72), .large]) }
             .task {
                 if !didInit {
                     query = SearchQuery(profile: user.profile); didInit = true
