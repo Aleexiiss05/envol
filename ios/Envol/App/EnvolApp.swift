@@ -63,6 +63,11 @@ struct SplashView: View {
     }
 }
 
+extension EnvironmentValues {
+    /// Change d'onglet depuis n'importe quel écran (ex. avatar de l'accueil → Profil)
+    @Entry var selectTab: (AppTab) -> Void = { _ in }
+}
+
 enum AppTab: Int, CaseIterable, Identifiable {
     case flights, explore, favorites, alerts, profile
     var id: Int { rawValue }
@@ -83,6 +88,7 @@ struct RootView: View {
             ProfileView().tag(AppTab.profile).toolbar(.hidden, for: .tabBar).safeAreaPadding(.bottom, 76)
         }
         .overlay(alignment: .bottom) { EnvolTabBar(tab: $tab, badges: [.favorites: user.favorites.count, .alerts: user.alerts.count]) }
+        .environment(\.selectTab, { t in withAnimation(.spring(response: 0.34, dampingFraction: 0.74)) { tab = t } })
         .ignoresSafeArea(.keyboard)
         .fullScreenCover(isPresented: Binding(get: { !user.onboarded }, set: { _ in })) {
             OnboardingView()

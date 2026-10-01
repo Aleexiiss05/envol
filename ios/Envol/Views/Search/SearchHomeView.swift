@@ -3,6 +3,7 @@ import SwiftUI
 /// Accueil « Vols » : même construction que la page d'accueil du site (hero, carte de recherche, hublots, petits prix).
 struct SearchHomeView: View {
     @Environment(UserData.self) private var user
+    @Environment(\.selectTab) private var selectTab
     @State private var query = SearchQuery()
     @State private var path: [SearchQuery] = []
     @State private var picking: PlaceField?
@@ -32,6 +33,13 @@ struct SearchHomeView: View {
                     deals.padding(.top, 36)
                 }
                 .padding(.bottom, 32)
+                // Ciel en haut de l'accueil : déborde sous la barre d'état et quand on tire la page vers le bas
+                .background(alignment: .top) {
+                    SkyHeader()
+                        .frame(height: 620)
+                        .offset(y: -240)
+                        .allowsHitTesting(false)
+                }
             }
             .background(.white)
             .toolbar(.hidden, for: .navigationBar)
@@ -64,12 +72,23 @@ struct SearchHomeView: View {
         HStack {
             BrandWordmark(size: 20)
             Spacer()
-            if !user.profile.firstName.isEmpty {
-                Text(String(user.profile.firstName.prefix(1)).uppercased())
-                    .font(.inter(14, .semibold)).foregroundStyle(Theme.ink)
-                    .frame(width: 34, height: 34).background(Theme.gray, in: Circle())
-                    .accessibilityHidden(true)
+            // Avatar : ouvre l'onglet Profil
+            Button { selectTab(.profile) } label: {
+                Group {
+                    if user.profile.firstName.isEmpty {
+                        Image(systemName: "person").font(.system(size: 15, weight: .semibold))
+                    } else {
+                        Text(String(user.profile.firstName.prefix(1)).uppercased()).font(.inter(15, .semibold))
+                    }
+                }
+                .foregroundStyle(Theme.ink)
+                .frame(width: 38, height: 38)
+                .background(.white.opacity(0.85), in: Circle())
+                .overlay(Circle().strokeBorder(.white, lineWidth: 1))
+                .shadow(color: Color(hex: "#0B3D91").opacity(0.12), radius: 8, y: 3)
             }
+            .buttonStyle(PressableStyle())
+            .accessibilityLabel("Votre profil")
         }
         .frame(height: 44)
         .padding(.horizontal, 20)
