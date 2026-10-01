@@ -77,6 +77,28 @@ jobs:
           done
           ls -la captures
 
+      # Version pour un vrai iPhone, non signée : Sideloadly la signe avec ton identifiant Apple au moment de l'installation
+      - name: Compiler pour iPhone (.ipa)
+        run: |
+          cd ios
+          set -o pipefail
+          xcodebuild -project Envol.xcodeproj -scheme Envol -configuration Release \
+            -sdk iphoneos -destination "generic/platform=iOS" \
+            -derivedDataPath build-device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build-device.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
+          ! grep -q "BUILD FAILED" build-device.log
+          APP=build-device/Build/Products/Release-iphoneos/Envol.app
+          test -f "$APP/Envol"
+          mkdir -p ../ipa/Payload
+          cp -R "$APP" ../ipa/Payload/
+          cd ../ipa && zip -qry Envol.ipa Payload && rm -rf Payload && ls -la
+
+      - name: Enregistrer l'app iPhone
+        uses: actions/upload-artifact@v4
+        with:
+          name: Envol-iPhone-ipa
+          path: ipa/Envol.ipa
+
       - name: Enregistrer les captures
         if: always()
         uses: actions/upload-artifact@v4
