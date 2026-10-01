@@ -50,8 +50,8 @@ struct FavoritesView: View {
             PlacePhoto(code: store.cityCode(f.to), width: 200).frame(width: 58, height: 58)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(store.city(f.from)) → \(store.city(f.to))").font(.inter(16, .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
-                Text("\(Day.short(f.date))\(r.map { " · \(Fmt.time($0.dep))" } ?? "") · \(f.from)–\(f.to)").font(.inter(13)).foregroundStyle(Theme.muted).lineLimit(1)
+                Text(store.city(f.to)).font(.inter(16, .semibold)).foregroundStyle(Theme.ink).lineLimit(1).minimumScaleFactor(0.8)
+                Text("Depuis \(store.city(f.from)) · \(Day.short(f.date))\(r.map { " · \(Fmt.time($0.dep))" } ?? "")").font(.inter(13)).foregroundStyle(Theme.muted).lineLimit(1).minimumScaleFactor(0.85)
             }
             Spacer(minLength: 4)
             VStack(alignment: .trailing, spacing: 3) {
@@ -148,6 +148,9 @@ private struct AlertCard: View {
     var body: some View {
         let history = store.priceHistory(from: alert.from, to: alert.to, date: alert.dep, cabin: alert.cabin)
         let current = history.last?.price
+        let lo = Double(history.map(\.price).min() ?? 0), hi = Double(history.map(\.price).max() ?? 1)
+        let pad = max(5, (hi - lo) * 0.35)
+        let floor = max(0, lo - pad), ceil = hi + pad
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -169,25 +172,25 @@ private struct AlertCard: View {
             }
             if history.count > 1 {
                 Chart(history.indices, id: \.self) { i in
-                    AreaMark(x: .value("Jour", Day.date(history[i].day)), y: .value("Prix", history[i].price))
+                    AreaMark(x: .value("Jour", Day.date(history[i].day)), yStart: .value("Bas", floor), yEnd: .value("Prix", Double(history[i].price)))
                         .interpolationMethod(.monotone)
                         .foregroundStyle(LinearGradient(colors: [Theme.accent.opacity(0.16), Theme.accent.opacity(0)], startPoint: .top, endPoint: .bottom))
-                    LineMark(x: .value("Jour", Day.date(history[i].day)), y: .value("Prix", history[i].price))
+                    LineMark(x: .value("Jour", Day.date(history[i].day)), y: .value("Prix", Double(history[i].price)))
                         .interpolationMethod(.monotone)
                         .foregroundStyle(Theme.accent)
                         .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                     if i == history.count - 1 {
-                        PointMark(x: .value("Jour", Day.date(history[i].day)), y: .value("Prix", history[i].price))
+                        PointMark(x: .value("Jour", Day.date(history[i].day)), y: .value("Prix", Double(history[i].price)))
                             .foregroundStyle(Theme.accent)
                             .symbolSize(50)
                     }
                 }
-                .chartYScale(domain: .automatic(includesZero: false))
+                .chartYScale(domain: floor...ceil)
                 .chartXAxis(.hidden)
                 .chartYAxis {
                     AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { v in
                         AxisGridLine().foregroundStyle(Theme.gray2)
-                        AxisValueLabel { if let p = v.as(Int.self) { Text(euros(p)).font(.inter(10)).foregroundStyle(Theme.faint) } }
+                        AxisValueLabel { if let p = v.as(Double.self) { Text(euros(Int(p))).font(.inter(10)).foregroundStyle(Theme.faint) } }
                     }
                 }
                 .frame(height: 76)

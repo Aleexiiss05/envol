@@ -67,9 +67,9 @@ struct ExploreView: View {
     private var labelledCodes: Set<String> {
         var picked: [FlightStore.Destination] = []
         for d in visible.sorted(by: { $0.price < $1.price }) {
-            if picked.contains(where: { store.km($0.airport, d.airport) < 420 }) { continue }
+            if picked.contains(where: { store.km($0.airport, d.airport) < 700 }) { continue }
             picked.append(d)
-            if picked.count == 14 { break }
+            if picked.count == 12 { break }
         }
         return Set(picked.map(\.code))
     }
